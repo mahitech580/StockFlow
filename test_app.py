@@ -286,6 +286,11 @@ def test_health_static_files_and_security_headers(client):
     assert "frame-ancestors 'none'" in headers["content-security-policy"]
     assert client.get("/api/health").headers["cache-control"] == "no-store"
 
+    docs = client.get("/api/docs")
+    assert docs.status_code == 200
+    assert "SwaggerUIBundle" in docs.text
+    assert "content-security-policy" not in docs.headers
+
 
 def test_theme_controls_and_search_have_no_command_k_hint(client):
     html = client.get("/").text
