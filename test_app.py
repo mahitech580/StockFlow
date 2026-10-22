@@ -311,3 +311,25 @@ def test_production_startup_rejects_placeholder_secret_key():
     )
     assert result.returncode != 0
     assert "Production requires a unique SECRET_KEY" in result.stderr
+
+
+def test_clearing_product_threshold_falls_back_to_workspace_default(client):
+    token, _ = signup(client)
+    headers = auth(token)
+    item = make_product(
+        client, token,
+        name="Custom threshold product", sku="THRESHOLD-RESET",
+        quantity_on_hand=3, low_stock_threshold=2,
+    )
+    assert item["is_low_stock"] is False
+
+    response = client.patch(
+        "/api/products/" + str(item["id"]),
+        headers=headers,
+        json={"low_stock_threshold": None},
+    )
+    assert response.status_code == 200
+    updated = response.json()["item"]
+    assert updated["low_stock_threshold"] is None
+    assert updated["effective_low_stock_threshold"] == 5
+    assert updated["is_low_stock"] is True
