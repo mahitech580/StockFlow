@@ -275,6 +275,7 @@ def test_update_rejects_null_required_fields_and_duplicate_sku(client):
     url = "/api/products/" + str(first["id"])
     assert client.patch(url, headers=auth(token), json={"quantity_on_hand": None}).status_code == 422
     assert client.patch(url, headers=auth(token), json={"name": None}).status_code == 422
+    assert client.patch(url, headers=auth(token), json={}).status_code == 422
     assert client.patch("/api/products/" + str(second["id"]), headers=auth(token), json={"sku": "SKU-1"}).status_code == 409
 
 
