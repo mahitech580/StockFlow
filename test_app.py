@@ -576,3 +576,10 @@ def test_password_verifier_rejects_malformed_and_extreme_iteration_counts():
     assert verify_password("correct-horse-123", too_high) is False
     assert verify_password("correct-horse-123", unsupported) is False
     assert verify_password("correct-horse-123", "not-a-valid-hash") is False
+
+
+def test_docker_start_command_execs_uvicorn_for_signal_forwarding():
+    from pathlib import Path
+
+    dockerfile = (Path(__file__).resolve().parent / "Dockerfile").read_text(encoding="utf-8")
+    assert 'CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}"]' in dockerfile
