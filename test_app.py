@@ -289,3 +289,25 @@ def test_threshold_equality_zero_quantity_and_empty_threshold(client):
     assert by_sku["EQUAL-1"]["is_low_stock"] is True
     assert by_sku["ZERO-1"]["is_low_stock"] is True
     assert by_sku["CUSTOM-7"]["is_low_stock"] is False
+
+
+def test_production_startup_rejects_placeholder_secret_key():
+    import os
+    import subprocess
+    import sys
+
+    environment = os.environ.copy()
+    environment.update({
+        "APP_ENV": "production",
+        "SECRET_KEY": "replace-with-a-unique-random-secret-at-least-32-characters",
+        "DATABASE_URL": "sqlite:///:memory:",
+    })
+    result = subprocess.run(
+        [sys.executable, "-c", "import auth"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode != 0
+    assert "Production requires a unique SECRET_KEY" in result.stderr
