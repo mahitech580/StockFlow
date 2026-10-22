@@ -37,9 +37,19 @@ Open http://127.0.0.1:8000. API documentation is available at http://127.0.0.1:8
 
 ## Tests
 
+Run the isolated test suite:
+
 ```powershell
 pytest -q
 ```
+
+With StockFlow running in a separate terminal, run the end-to-end HTTP smoke check against a **disposable test database/account only**:
+
+```powershell
+python smoke_test.py
+```
+
+The smoke test creates two temporary accounts and products. Do not point it at a production workspace containing customer data.
 
 ## Configuration
 
