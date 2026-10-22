@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.pytest_cache/
+.coverage
+htmlcov/
+stockflow.db
+stockflow.db-shm
+stockflow.db-wal
+*.sqlite
+*.sqlite3
+.DS_Store
+Thumbs.db
