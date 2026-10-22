@@ -313,6 +313,9 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert 'id="mobile-menu-button"' in html
     assert 'aria-controls="sidebar"' in html
     assert 'aria-expanded="false"' in html
+    assert 'id="page-content"' in html
+    assert 'aria-live="polite"' in html
+    assert 'aria-busy="false"' in html
     assert 'placeholder="Search products..."' in html
     assert "⌘ K" not in html
     css = client.get("/style.css").text
@@ -332,6 +335,8 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert "setAttribute('aria-expanded', 'false')" in js
     assert "setAttribute('aria-label', 'Close navigation')" in js
     assert "setAttribute('aria-label', 'Open navigation')" in js
+    assert "setAttribute('aria-busy', 'true')" in js
+    assert "setAttribute('aria-busy', 'false')" in js
     assert "if (state.page !== 'products') return;" not in js
     assert "window.clearTimeout(state.searchTimer)" in js
     assert "renderPage('products')" in js
