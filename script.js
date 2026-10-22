@@ -137,6 +137,7 @@
     state.page = page;
     setActivePage(page);
     closeSidebar();
+    pageContent.setAttribute('aria-busy', 'true');
     pageContent.innerHTML = '<div class="panel loading-state"><span class="loader"></span><strong>Loading your workspace…</strong></div>';
     try {
       if (page === 'dashboard') await renderDashboard(renderId);
@@ -146,6 +147,8 @@
     } catch (error) {
       if (renderId !== state.renderSequence) return;
       pageContent.innerHTML = '<div class="panel empty-state"><div class="empty-state-icon">!</div><strong>We could not load this page</strong><p>' + escapeHtml(error.message) + '</p><button class="btn-secondary" data-action="retry-page">Try again</button></div>';
+    } finally {
+      if (renderId === state.renderSequence) pageContent.setAttribute('aria-busy', 'false');
     }
   }
   function sectionHead(kicker, title, copy, action) {
