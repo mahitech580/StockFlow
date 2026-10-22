@@ -328,8 +328,11 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert 'data-theme="dark"' in css
     js = client.get("/script.js").text
     assert "function applyTheme(theme, persist = false)" in js
-    assert "window.location.hostname.toLowerCase().endsWith('.github.io')" in js
-    assert "Login requires the StockFlow FastAPI backend" in js
+    assert 'name="stockflow-api-base-url" content=""' in html
+    assert 'meta[name="stockflow-api-base-url"]' in js
+    assert "const requestUrl = API_BASE_URL && isApiRequest ? API_BASE_URL + path : path;" in js
+    assert "StockFlow sign-in is not connected to its backend on this preview" in js
+    assert "fetch(requestUrl, { ...options, headers })" in js
     assert "stockflow_theme" in js
     assert "function renderAuth(mode, error = '', values = {})" in js
     assert "escapeHtml(values.organization_name || '')" in js
