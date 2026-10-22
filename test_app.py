@@ -252,9 +252,9 @@ def test_tampered_and_expired_tokens_are_rejected(client, monkeypatch):
     assert client.get("/api/me", headers=auth_header(tampered)).status_code == 401
 
     # A legitimately signed token becomes invalid once its expiry is in the past.
-    monkeypatch.setattr(auth, "TOKEN_TTL_HOURS", 1)
     token, _ = signup(client, "expiry@example.com", "Expiry Test Store")
-    monkeypatch.setattr(auth.time, "time", lambda: time.time() + 7200)
+    current_time = time.time()
+    monkeypatch.setattr(auth.time, "time", lambda: current_time + 7200)
     assert client.get("/api/me", headers=auth_header(token)).status_code == 401
 
 
