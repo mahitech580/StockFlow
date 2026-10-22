@@ -369,6 +369,17 @@ def test_production_startup_requires_explicit_database_url():
     assert result.returncode != 0
     assert "DATABASE_URL must be configured in production" in result.stderr
 
+    environment["DATABASE_URL"] = "sqlite:///:memory:"
+    sqlite_result = subprocess.run(
+        [sys.executable, "-c", "import db"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert sqlite_result.returncode != 0
+    assert "SQLite is for local development only" in sqlite_result.stderr
+
 
 def test_database_url_normalization_for_supported_sql_engines(monkeypatch):
     from db import configured_database_url
