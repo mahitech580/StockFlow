@@ -323,6 +323,12 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     js = client.get("/script.js").text
     assert "function applyTheme(theme, persist = false)" in js
     assert "stockflow_theme" in js
+    assert "function renderAuth(mode, error = '', values = {})" in js
+    assert "escapeHtml(values.organization_name || '')" in js
+    assert "escapeHtml(values.email || '')" in js
+    assert "renderAuth('login', error.message, { email: String(values.get('email') || '').trim() })" in js
+    assert "renderAuth('signup', error.message, authValues)" in js
+    assert "escapeHtml(values.password" not in js
     assert 'aria-labelledby="stock-adjust-modal-title"' in js
     assert 'id="stock-adjust-modal-title"' in js
     assert 'aria-labelledby="delete-product-modal-title"' in js
