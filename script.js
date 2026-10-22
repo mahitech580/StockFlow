@@ -19,6 +19,7 @@
   const modalRoot = $('#modal-root');
   const THEME_KEY = 'stockflow_theme';
   const API_BASE_URL = String(document.querySelector('meta[name="stockflow-api-base-url"]')?.content || '').trim().replace(/\/+$/, '');
+  const API_PUBLIC_KEY = String(document.querySelector('meta[name="stockflow-api-key"]')?.content || '').trim();
   let modalTrigger = null;
 
   function applyTheme(theme, persist = false) {
@@ -68,6 +69,7 @@
     }
     const requestUrl = API_BASE_URL && isApiRequest ? API_BASE_URL + path : path;
     const headers = new Headers(options.headers || {});
+    if (API_PUBLIC_KEY && isApiRequest) headers.set('apikey', API_PUBLIC_KEY);
     if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
     if (state.token) headers.set('Authorization', 'Bearer ' + state.token);
     let response;
