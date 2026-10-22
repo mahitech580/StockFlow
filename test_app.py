@@ -268,6 +268,10 @@ def test_validation_rejects_bad_product_values_and_does_not_echo_secret(client):
         json={"selling_price": True},
     ).status_code == 422
     assert client.patch(
+        "/api/products/" + str(item["id"]), headers=auth(token),
+        json={"low_stock_threshold": True},
+    ).status_code == 422
+    assert client.patch(
         "/api/settings", headers=auth(token),
         json={"default_low_stock_threshold": True},
     ).status_code == 422
