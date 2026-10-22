@@ -224,7 +224,12 @@ def test_health_static_files_and_security_headers(client):
     assert "function renderDashboard" in js.text
     assert "stock-adjust-form" in js.text
     assert "load-sample-data" in js.text
-    assert client.get("/").headers["x-frame-options"] == "DENY"
+    headers = client.get("/").headers
+    assert headers["x-frame-options"] == "DENY"
+    assert headers["x-content-type-options"] == "nosniff"
+    assert "default-src 'self'" in headers["content-security-policy"]
+    assert "frame-ancestors 'none'" in headers["content-security-policy"]
+    assert client.get("/api/health").headers["cache-control"] == "no-store"
 
 
 def test_theme_controls_and_search_have_no_command_k_hint(client):
