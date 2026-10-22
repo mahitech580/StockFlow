@@ -233,6 +233,25 @@ def test_validation_rejects_bad_product_values_and_does_not_echo_secret(client):
     assert bad_login.status_code == 422
     assert too_long not in bad_login.text
 
+    boolean_quantity = client.post("/api/products", headers=auth(token), json={
+        "name": "Boolean quantity", "sku": "BOOL-1", "quantity_on_hand": True,
+    })
+    assert boolean_quantity.status_code == 422
+
+    item = make_product(client, token, sku="STRICT-1", quantity_on_hand=4)
+    assert client.patch(
+        "/api/products/" + str(item["id"]), headers=auth(token),
+        json={"quantity_on_hand": True},
+    ).status_code == 422
+    assert client.patch(
+        "/api/settings", headers=auth(token),
+        json={"default_low_stock_threshold": True},
+    ).status_code == 422
+    assert client.post(
+        "/api/products/" + str(item["id"]) + "/adjust-stock", headers=auth(token),
+        json={"delta": True, "note": "Invalid boolean"},
+    ).status_code == 422
+
 
 def test_health_static_files_and_security_headers(client):
     assert client.get("/api/health").json() == {"status": "ok", "service": "stockflow", "database": "ok"}
