@@ -253,11 +253,19 @@ def test_validation_rejects_bad_product_values_and_does_not_echo_secret(client):
         "name": "Boolean quantity", "sku": "BOOL-1", "quantity_on_hand": True,
     })
     assert boolean_quantity.status_code == 422
+    boolean_price = client.post("/api/products", headers=auth(token), json={
+        "name": "Boolean price", "sku": "BOOL-PRICE-1", "quantity_on_hand": 1, "cost_price": True,
+    })
+    assert boolean_price.status_code == 422
 
     item = make_product(client, token, sku="STRICT-1", quantity_on_hand=4)
     assert client.patch(
         "/api/products/" + str(item["id"]), headers=auth(token),
         json={"quantity_on_hand": True},
+    ).status_code == 422
+    assert client.patch(
+        "/api/products/" + str(item["id"]), headers=auth(token),
+        json={"selling_price": True},
     ).status_code == 422
     assert client.patch(
         "/api/settings", headers=auth(token),
