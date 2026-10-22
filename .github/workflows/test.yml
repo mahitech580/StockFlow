@@ -34,3 +34,26 @@ jobs:
         run: python -c "import yaml; yaml.safe_load(open('render.yaml', encoding='utf-8'))"
       - name: Run tests
         run: pytest -q
+      - name: Start FastAPI for HTTP smoke test
+        run: |
+          APP_ENV=development DATABASE_URL=sqlite:////tmp/stockflow-ci-smoke.db SECRET_KEY=ci-only-smoke-secret-with-more-than-32-characters uvicorn app:app --host 127.0.0.1 --port 8000 > /tmp/stockflow-server.log 2>&1 &
+          echo $! > /tmp/stockflow-server.pid
+      - name: Wait for app health
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:8000/api/health; then
+              echo
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/stockflow-server.log
+          exit 1
+      - name: Run end-to-end HTTP smoke test
+        run: python smoke_test.py
+      - name: Stop FastAPI smoke-test server
+        if: always()
+        run: |
+          if [ -f /tmp/stockflow-server.pid ]; then
+            kill "$(cat /tmp/stockflow-server.pid)" 2>/dev/null || true
+          fi
