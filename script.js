@@ -60,6 +60,9 @@
     return (parts.length > 1 ? parts[0][0] + parts[1][0] : (parts[0] || 'S').slice(0, 2)).toUpperCase();
   }
   async function api(path, options = {}) {
+    if (window.location.hostname.toLowerCase().endsWith('.github.io') && path.startsWith('/api/')) {
+      throw new Error('This GitHub Pages preview hosts only the interface. Login requires the StockFlow FastAPI backend. Open the deployed StockFlow app URL or run the app locally at http://127.0.0.1:8000.');
+    }
     const headers = new Headers(options.headers || {});
     if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
     if (state.token) headers.set('Authorization', 'Bearer ' + state.token);
