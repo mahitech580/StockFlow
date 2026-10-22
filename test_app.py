@@ -258,6 +258,10 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert "if (state.page !== 'products') return;" not in js
     assert "window.clearTimeout(state.searchTimer)" in js
     assert "renderPage('products')" in js
+    assert "renderSequence: 0" in js
+    assert js.count("if (renderId !== state.renderSequence) return;") >= 3
+    assert "await renderProducts(state.query, renderId)" in js
+    assert "await renderSettings(renderId)" in js
     assert "key.toLowerCase() === 'k'" not in js
 
 
