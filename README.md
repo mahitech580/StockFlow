@@ -46,3 +46,17 @@ Copy `.env.example` to `.env` and set a strong, unique `SECRET_KEY` before using
 ## Implementation stack
 
 Python, FastAPI, SQLAlchemy, Pydantic, HTML, CSS, vanilla JavaScript, SQLite/MySQL, Pytest, and Postman.
+
+## Deployment
+
+StockFlow is a **FastAPI web service**, not a static-only website. Deploy it as a Python web service so the UI and `/api/*` routes run on the same origin. GitHub Pages can publish static files but cannot run the FastAPI API.
+
+The committed `render.yaml` configures a Render web service and prompts for `DATABASE_URL` at initial Blueprint creation. Provide a PostgreSQL connection string for a **separate StockFlow database**. Do not point this app at another project's database and never commit credentials.
+
+Render's free PostgreSQL plan has a 1 GB limit, is limited to one active free database per workspace, and expires after 30 days. If your workspace already uses its free database, use a separate external Postgres provider or choose a paid database plan only after reviewing the cost. The app's free web service can also spin down when idle; first requests may take longer.
+
+After deployment:
+1. Confirm the service deploy reaches the `live` state.
+2. Check `https://YOUR-SERVICE.onrender.com/api/health`.
+3. Sign up with a new test email, add a product, and verify the dashboard totals and low-stock behavior.
+4. Restart or redeploy only after confirming your database is external and durable, not a local SQLite file on an ephemeral filesystem.
