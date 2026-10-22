@@ -169,8 +169,8 @@ def test_default_and_product_specific_thresholds(client):
 
 
 def test_settings_are_scoped_to_each_organization(client):
-    token_a, _ = signup(client, "settings-a@example.com", "A")
-    token_b, _ = signup(client, "settings-b@example.com", "B")
+    token_a, _ = signup(client, "settings-a@example.com", "Store A")
+    token_b, _ = signup(client, "settings-b@example.com", "Store B")
     client.patch("/api/settings", headers=auth(token_a), json={"default_low_stock_threshold": 9})
     assert client.get("/api/settings", headers=auth(token_a)).json()["default_low_stock_threshold"] == 9
     assert client.get("/api/settings", headers=auth(token_b)).json()["default_low_stock_threshold"] == 5
@@ -190,8 +190,8 @@ def test_stock_adjustment_records_latest_note_and_rejects_negative_result(client
 
 
 def test_stock_adjustment_cannot_cross_tenant_boundary(client):
-    token_a, _ = signup(client, "adjust-a@example.com", "A")
-    token_b, _ = signup(client, "adjust-b@example.com", "B")
+    token_a, _ = signup(client, "adjust-a@example.com", "Store A")
+    token_b, _ = signup(client, "adjust-b@example.com", "Store B")
     item = make_product(client, token_a)
     result = client.post("/api/products/" + str(item["id"]) + "/adjust-stock", headers=auth(token_b),
                          json={"delta": 5, "note": "Cross-tenant attempt"})
