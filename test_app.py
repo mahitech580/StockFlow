@@ -347,6 +347,8 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert "setAttribute('aria-expanded', 'false')" in js
     assert "setAttribute('aria-label', 'Close navigation')" in js
     assert "setAttribute('aria-label', 'Open navigation')" in js
+    assert "if ($('#sidebar').classList.contains('sidebar-open')) closeSidebar();" in js
+    assert "else openSidebar();" in js
     assert "setAttribute('aria-busy', 'true')" in js
     assert "setAttribute('aria-busy', 'false')" in js
     assert "if (state.page !== 'products') return;" not in js
