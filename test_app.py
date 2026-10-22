@@ -318,8 +318,8 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert 'href="#faq"' in html
     assert 'id="auth-view" class="auth-view hidden"' in html
     assert 'data-action="demo-access"' in html
-    assert 'href="style.css?v=20261023-marketing"' in html
-    assert 'src="script.js?v=20261023-marketing" defer' in html
+    assert 'href="style.css?v=20261023-marketing-v2"' in html
+    assert 'src="script.js?v=20261023-marketing-v2" defer' in html
     assert 'id="theme-toggle"' in html
     assert 'id="auth-theme-toggle"' in html
     assert 'id="mobile-menu-button"' in html
