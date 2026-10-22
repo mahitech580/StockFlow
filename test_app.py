@@ -252,6 +252,8 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     js = client.get("/script.js").text
     assert "function applyTheme(theme, persist = false)" in js
     assert "stockflow_theme" in js
+    assert "if (state.page !== 'products') return;" in js
+    assert "window.clearTimeout(state.searchTimer)" in js
     assert "key.toLowerCase() === 'k'" not in js
 
 
