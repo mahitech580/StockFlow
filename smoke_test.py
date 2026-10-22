@@ -100,7 +100,7 @@ def main() -> None:
     assert health == {"status": "ok", "service": "stockflow", "database": "ok"}
     assert "StockFlow" in api("GET", "/")
     assert "theme-toggle" in api("GET", "/").lower()
-    assert "stockflow" in api("GET", "/style.css").lower()
+    assert ".main-panel" in api("GET", "/style.css")
     assert "function renderDashboard" in api("GET", "/script.js")
     print("PASS: health endpoint and frontend assets")
 
