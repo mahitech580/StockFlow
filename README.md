@@ -1,5 +1,7 @@
 # StockFlow MVP v0.1
 
+[![StockFlow CI](https://github.com/mahitech580/StockFlow/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/mahitech580/StockFlow/actions/workflows/test.yml)
+
 A scope-reduced, multi-tenant SaaS inventory management app for the Phase 1 six-hour MVP assessment.
 
 ## Scope
