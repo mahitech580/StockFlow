@@ -278,6 +278,9 @@ def test_health_static_files_and_security_headers(client):
     assert js.status_code == 200
     assert "function renderDashboard" in js.text
     assert "stock-adjust-form" in js.text
+    assert 'aria-label="Adjust stock for ' in js.text
+    assert 'aria-label="Edit ' in js.text
+    assert 'aria-label="Delete ' in js.text
     assert "load-sample-data" in js.text
     headers = client.get("/").headers
     assert headers["x-frame-options"] == "DENY"
