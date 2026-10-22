@@ -16,14 +16,20 @@ APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 
 
 def configured_database_url() -> str:
-    """Return normalized URL; never silently use ephemeral SQLite in production."""
+    """Return normalized URL; production must use a durable external database."""
     raw_url = os.getenv("DATABASE_URL", "").strip()
-    if not raw_url:
-        if APP_ENV in {"production", "prod"}:
+    if APP_ENV in {"production", "prod"}:
+        if not raw_url:
             raise RuntimeError(
                 "DATABASE_URL must be configured in production. "
                 "Use a durable external database; SQLite on an ephemeral host filesystem is not safe."
             )
+        if raw_url.lower().startswith("sqlite:"):
+            raise RuntimeError(
+                "SQLite is for local development only. Configure DATABASE_URL for a durable "
+                "PostgreSQL or MySQL database in production."
+            )
+    elif not raw_url:
         raw_url = "sqlite:///./stockflow.db"
     url = raw_url
     if url.startswith("postgres://"):
