@@ -583,3 +583,38 @@ def test_docker_start_command_execs_uvicorn_for_signal_forwarding():
 
     dockerfile = (Path(__file__).resolve().parent / "Dockerfile").read_text(encoding="utf-8")
     assert 'CMD ["sh", "-c", "exec uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}"]' in dockerfile
+
+
+def test_postman_collection_covers_authentication_and_token_reuse():
+    import json
+    from pathlib import Path
+
+    collection = json.loads(
+        (Path(__file__).resolve().parent / "postman_collection.json").read_text(encoding="utf-8")
+    )
+    variables = {item["key"]: item.get("value", "") for item in collection["variable"]}
+    assert {"baseUrl", "token", "email"} <= variables.keys()
+
+    authentication = next(item for item in collection["item"] if item["name"] == "Authentication")
+    signup = next(item for item in authentication["item"] if item["request"]["url"] == "{{baseUrl}}/api/auth/signup")
+    login = next(item for item in authentication["item"] if item["request"]["url"] == "{{baseUrl}}/api/auth/login")
+
+    signup_body = json.loads(signup["request"]["body"]["raw"])
+    login_body = json.loads(login["request"]["body"]["raw"])
+    assert signup_body["email"] == "{{email}"
+    assert login_body["email"] == "{{email}"
+    pre_request = "\\n".join(
+        line
+        for event in signup.get("event", [])
+        if event["listen"] == "prerequest"
+        for line in event["script"]["exec"]
+    )
+    assert "pm.collectionVariables.set('email'" in pre_request
+    assert "{{$guid}}" in pre_request
+    signup_tests = "\\n".join(
+        line
+        for event in signup.get("event", [])
+        if event["listen"] == "test"
+        for line in event["script"]["exec"]
+    )
+    assert "pm.collectionVariables.set('token'" in signup_tests
