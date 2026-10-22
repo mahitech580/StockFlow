@@ -255,6 +255,8 @@ def update_product(
     organization = _organization(db, user)
     product = _product_by_org(db, product_id, user.organization_id)
     changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(status_code=422, detail="Provide at least one field to update")
     for required_key in ("name", "sku", "quantity_on_hand"):
         if required_key in changes and changes[required_key] is None:
             raise HTTPException(status_code=422, detail=f"{required_key} cannot be null")
