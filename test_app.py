@@ -560,3 +560,19 @@ def test_startup_rejects_out_of_range_token_lifetimes():
         )
         assert result.returncode != 0
         assert "TOKEN_TTL_HOURS must be an integer between 1 and 168" in result.stderr
+
+
+def test_password_verifier_rejects_malformed_and_extreme_iteration_counts():
+    from auth import hash_password, verify_password
+
+    encoded = hash_password("correct-horse-123")
+    algorithm, iterations, salt, digest = encoded.split("$", 3)
+    too_low = "$".join((algorithm, "1", salt, digest))
+    too_high = "$".join((algorithm, "999999999", salt, digest))
+    unsupported = "$".join(("unsupported", iterations, salt, digest))
+
+    assert verify_password("correct-horse-123", encoded) is True
+    assert verify_password("correct-horse-123", too_low) is False
+    assert verify_password("correct-horse-123", too_high) is False
+    assert verify_password("correct-horse-123", unsupported) is False
+    assert verify_password("correct-horse-123", "not-a-valid-hash") is False
