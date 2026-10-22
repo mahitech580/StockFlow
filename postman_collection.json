@@ -16,6 +16,10 @@
     {
       "key": "productId",
       "value": "1"
+    },
+    {
+      "key": "email",
+      "value": ""
     }
   ],
   "item": [
@@ -30,8 +34,17 @@
       "name": "Authentication",
       "item": [
         {
-          "name": "Sign up (new email each time)",
+          "name": "Sign up (unique email per run)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('email', 'stockflow-' + pm.variables.replaceIn('{{$guid}}') + '@example.com');"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -52,7 +65,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"correct-horse-123\",\n  \"organization_name\": \"My Test Store\"\n}"
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"correct-horse-123\",\n  \"organization_name\": \"My Test Store\"\n}"
             },
             "url": "{{baseUrl}}/api/auth/signup"
           }
@@ -80,7 +93,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"correct-horse-123\"\n}"
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"correct-horse-123\"\n}"
             },
             "url": "{{baseUrl}}/api/auth/login"
           }
