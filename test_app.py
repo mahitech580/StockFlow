@@ -315,7 +315,7 @@ def test_production_startup_rejects_placeholder_secret_key():
     environment.update({
         "APP_ENV": "production",
         "SECRET_KEY": "replace-with-a-unique-random-secret-at-least-32-characters",
-        "DATABASE_URL": "sqlite:///:memory:",
+        "DATABASE_URL": "postgresql+psycopg://test:test@127.0.0.1:5432/stockflow",
     })
     result = subprocess.run(
         [sys.executable, "-c", "import auth"],
