@@ -169,6 +169,12 @@ def test_search_matches_name_and_sku_case_insensitively(client):
     by_sku = client.get("/api/products?q=bag-42", headers=auth(token)).json()
     assert [item["name"] for item in by_sku["items"]] == ["Cotton Tote Bag"]
 
+    make_product(client, token, name="fooXbar", sku="WILD-01", quantity_on_hand=1)
+    underscore = client.get("/api/products?q=foo_bar", headers=auth(token)).json()
+    percent = client.get("/api/products?q=foo%25bar", headers=auth(token)).json()
+    assert underscore["count"] == 0
+    assert percent["count"] == 0
+
 
 def test_default_and_product_specific_thresholds(client):
     token, _ = signup(client)
