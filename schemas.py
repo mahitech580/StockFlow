@@ -45,10 +45,10 @@ class ProductCreate(RequestSchema):
     name: str = Field(min_length=1, max_length=120)
     sku: str = Field(min_length=1, max_length=64)
     description: str | None = Field(default=None, max_length=2000)
-    quantity_on_hand: int = Field(default=0, ge=0, le=2_000_000_000)
+    quantity_on_hand: int = Field(default=0, ge=0, le=2_000_000_000, strict=True)
     cost_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     selling_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
-    low_stock_threshold: int | None = Field(default=None, ge=0, le=2_000_000_000)
+    low_stock_threshold: int | None = Field(default=None, ge=0, le=2_000_000_000, strict=True)
 
     @field_validator("name")
     @classmethod
@@ -79,7 +79,7 @@ class ProductUpdate(RequestSchema):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     sku: str | None = Field(default=None, min_length=1, max_length=64)
     description: str | None = Field(default=None, max_length=2000)
-    quantity_on_hand: int | None = Field(default=None, ge=0, le=2_000_000_000)
+    quantity_on_hand: int | None = Field(default=None, ge=0, le=2_000_000_000, strict=True)
     cost_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     selling_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     low_stock_threshold: int | None = Field(default=None, ge=0, le=2_000_000_000)
@@ -111,7 +111,7 @@ class ProductUpdate(RequestSchema):
 
 
 class StockAdjustmentIn(RequestSchema):
-    delta: int = Field(ge=-2_000_000_000, le=2_000_000_000)
+    delta: int = Field(ge=-2_000_000_000, le=2_000_000_000, strict=True)
     note: str = Field(min_length=3, max_length=300)
 
     @field_validator("delta")
@@ -131,4 +131,4 @@ class StockAdjustmentIn(RequestSchema):
 
 
 class SettingsUpdate(RequestSchema):
-    default_low_stock_threshold: int = Field(ge=0, le=2_000_000_000)
+    default_low_stock_threshold: int = Field(ge=0, le=2_000_000_000, strict=True)
