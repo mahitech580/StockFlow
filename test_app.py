@@ -321,6 +321,10 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert 'id="stock-adjust-modal-title"' in js
     assert 'aria-labelledby="delete-product-modal-title"' in js
     assert 'id="delete-product-modal-title"' in js
+    assert "modalTrigger = document.activeElement" in js
+    assert "event.key !== 'Tab'" in js
+    assert "modalRoot.contains(document.activeElement)" in js
+    assert "trigger.focus()" in js
     assert "if (state.page !== 'products') return;" not in js
     assert "window.clearTimeout(state.searchTimer)" in js
     assert "renderPage('products')" in js
