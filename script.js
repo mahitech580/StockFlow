@@ -412,7 +412,6 @@
     state.query = $('#global-search-input').value.trim();
     window.clearTimeout(state.searchTimer);
     state.searchTimer = window.setTimeout(() => {
-      if (state.page !== 'products') return;
       state.filter = state.filter || 'all';
       renderPage('products');
     }, 200);
