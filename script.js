@@ -309,7 +309,14 @@
     const target = event.target.closest('button, [data-action], [data-page], [data-filter]');
     if (!target) return;
     if (target.dataset.authMode) { renderAuth(target.dataset.authMode); return; }
-    if (target.dataset.page) { state.filter = 'all'; state.query = ''; $('#global-search-input').value = ''; renderPage(target.dataset.page); return; }
+    if (target.dataset.page) {
+      window.clearTimeout(state.searchTimer);
+      state.filter = 'all';
+      state.query = '';
+      $('#global-search-input').value = '';
+      renderPage(target.dataset.page);
+      return;
+    }
     if (target.dataset.filter) { state.filter = target.dataset.filter; renderProducts(state.query); return; }
     const action = target.dataset.action;
     if (!action) return;
@@ -405,6 +412,7 @@
     state.query = $('#global-search-input').value.trim();
     window.clearTimeout(state.searchTimer);
     state.searchTimer = window.setTimeout(() => {
+      if (state.page !== 'products') return;
       state.filter = state.filter || 'all';
       renderPage('products');
     }, 200);
