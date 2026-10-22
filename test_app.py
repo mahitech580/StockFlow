@@ -239,3 +239,52 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert "function applyTheme(theme, persist = false)" in js
     assert "stockflow_theme" in js
     assert "key.toLowerCase() === 'k'" not in js
+
+
+def test_tampered_and_expired_tokens_are_rejected(client, monkeypatch):
+    import time
+    import auth
+
+    token, _ = signup(client)
+    version, payload, signature = token.split(".")
+    replacement = ("A" if signature[-1] != "A" else "B")
+    tampered = version + "." + payload + "." + signature[:-1] + replacement
+    assert client.get("/api/me", headers=auth_header(tampered)).status_code == 401
+
+    # A legitimately signed token becomes invalid once its expiry is in the past.
+    monkeypatch.setattr(auth, "TOKEN_TTL_HOURS", 1)
+    token, _ = signup(client, "expiry@example.com", "Expiry Test Store")
+    monkeypatch.setattr(auth.time, "time", lambda: time.time() + 7200)
+    assert client.get("/api/me", headers=auth_header(token)).status_code == 401
+
+
+def auth_header(token):
+    return {"Authorization": "Bearer " + token}
+
+
+def test_update_rejects_null_required_fields_and_duplicate_sku(client):
+    token, _ = signup(client)
+    first = make_product(client, token, name="First item", sku="SKU-1")
+    second = make_product(client, token, name="Second item", sku="SKU-2")
+    url = "/api/products/" + str(first["id"])
+    assert client.patch(url, headers=auth(token), json={"quantity_on_hand": None}).status_code == 422
+    assert client.patch(url, headers=auth(token), json={"name": None}).status_code == 422
+    assert client.patch("/api/products/" + str(second["id"]), headers=auth(token), json={"sku": "SKU-1"}).status_code == 409
+
+
+def test_threshold_equality_zero_quantity_and_empty_threshold(client):
+    token, _ = signup(client)
+    headers = auth(token)
+    make_product(client, token, name="At threshold", sku="EQUAL-1", quantity_on_hand=5)
+    make_product(client, token, name="Zero stock", sku="ZERO-1", quantity_on_hand=0)
+    make_product(client, token, name="Custom threshold", sku="CUSTOM-7", quantity_on_hand=3, low_stock_threshold=2)
+    response = client.get("/api/dashboard", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_products"] == 3
+    assert data["total_units"] == 8
+    assert data["low_stock_count"] == 2
+    by_sku = {item["sku"]: item for item in client.get("/api/products", headers=headers).json()["items"]}
+    assert by_sku["EQUAL-1"]["is_low_stock"] is True
+    assert by_sku["ZERO-1"]["is_low_stock"] is True
+    assert by_sku["CUSTOM-7"]["is_low_stock"] is False
