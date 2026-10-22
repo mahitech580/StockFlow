@@ -312,12 +312,7 @@
     if (target.dataset.page) { state.filter = 'all'; state.query = ''; $('#global-search-input').value = ''; renderPage(target.dataset.page); return; }
     if (target.dataset.filter) { state.filter = target.dataset.filter; renderProducts(state.query); return; }
     const action = target.dataset.action;
-    if (!action) {
-      if (target.id === 'theme-toggle' || target.id === 'auth-theme-toggle') toggleTheme();
-      if (target.id === 'mobile-menu-button') openSidebar();
-      if (target.id === 'logout-button') { state.token = null; state.user = null; localStorage.removeItem('stockflow_token'); showAuth('login'); }
-      return;
-    }
+    if (!action) return;
     if (action === 'new-product') { await openProductModal(); return; }
     if (action === 'review-low-stock') { state.filter = 'low'; state.query = ''; $('#global-search-input').value = ''; await renderPage('products'); return; }
     if (action === 'load-sample-data') { await loadSampleCatalog(target); return; }
