@@ -97,7 +97,7 @@
     closeSidebar();
     renderAuth(mode, error);
   }
-  function renderAuth(mode, error = '') {
+  function renderAuth(mode, error = '', values = {}) {
     state.authMode = mode;
     const signup = mode === 'signup';
     $('#auth-form-content').innerHTML =
@@ -105,8 +105,8 @@
       '<p class="auth-subtitle">' + (signup ? 'Set up your account and bring inventory into focus.' : 'Sign in to pick up where your business left off.') + '</p>' +
       (error ? '<div class="auth-error" role="alert">' + escapeHtml(error) + '</div>' : '') +
       '<form id="' + (signup ? 'signup-form' : 'login-form') + '" novalidate>' +
-      (signup ? '<div class="form-field"><label for="org-name">Organization name</label><input class="form-control" id="org-name" name="organization_name" placeholder="e.g. Northstar Supply Co." maxlength="80" required autocomplete="organization"></div>' : '') +
-      '<div class="form-field"><label for="auth-email">Email address</label><input class="form-control" id="auth-email" name="email" type="email" placeholder="you@company.com" maxlength="254" required autocomplete="email"></div>' +
+      (signup ? '<div class="form-field"><label for="org-name">Organization name</label><input class="form-control" id="org-name" name="organization_name" value="' + escapeHtml(values.organization_name || '') + '" placeholder="e.g. Northstar Supply Co." maxlength="80" required autocomplete="organization"></div>' : '') +
+      '<div class="form-field"><label for="auth-email">Email address</label><input class="form-control" id="auth-email" name="email" type="email" value="' + escapeHtml(values.email || '') + '" placeholder="you@company.com" maxlength="254" required autocomplete="email"></div>' +
       '<div class="form-field"><label for="auth-password">Password</label><input class="form-control" id="auth-password" name="password" type="password" placeholder="' + (signup ? 'At least 8 characters' : 'Enter your password') + '" minlength="' + (signup ? '8' : '1') + '" maxlength="128" required autocomplete="' + (signup ? 'new-password' : 'current-password') + '"></div>' +
       (signup ? '<div class="form-field"><label for="confirm-password">Confirm password</label><input class="form-control" id="confirm-password" name="confirm_password" type="password" minlength="8" maxlength="128" required autocomplete="new-password"></div>' : '') +
       '<button type="submit" class="auth-submit">' + (signup ? 'Create account' : 'Sign in to StockFlow') + ' <span aria-hidden="true">→</span></button></form>' +
@@ -364,24 +364,28 @@
         localStorage.setItem('stockflow_token', state.token);
         showApp(data.user);
         toast('Welcome back to your workspace.');
-      } catch (error) { renderAuth('login', error.message); }
+      } catch (error) { renderAuth('login', error.message, { email: String(values.get('email') || '').trim() }); }
     }
     if (form.id === 'signup-form') {
       event.preventDefault();
       const values = new FormData(form);
       const password = String(values.get('password') || '');
-      if (password !== String(values.get('confirm_password') || '')) { renderAuth('signup', 'Your passwords do not match.'); return; }
-      if (password.length < 8) { renderAuth('signup', 'Use at least 8 characters for your password.'); return; }
+      const authValues = {
+        organization_name: String(values.get('organization_name') || '').trim(),
+        email: String(values.get('email') || '').trim()
+      };
+      if (password !== String(values.get('confirm_password') || '')) { renderAuth('signup', 'Your passwords do not match.', authValues); return; }
+      if (password.length < 8) { renderAuth('signup', 'Use at least 8 characters for your password.', authValues); return; }
       try {
         const data = await api('/api/auth/signup', { method: 'POST', body: JSON.stringify({
-          organization_name: String(values.get('organization_name') || '').trim(),
-          email: String(values.get('email') || '').trim(), password
+          organization_name: authValues.organization_name,
+          email: authValues.email, password
         })});
         state.token = data.access_token;
         localStorage.setItem('stockflow_token', state.token);
         showApp(data.user);
         toast('Your workspace is ready. Add your first product to begin.');
-      } catch (error) { renderAuth('signup', error.message); }
+      } catch (error) { renderAuth('signup', error.message, authValues); }
     }
     if (form.id === 'product-form') { event.preventDefault(); await handleProductSubmit(form); }
     if (form.id === 'stock-adjust-form') {
