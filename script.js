@@ -453,8 +453,20 @@
     }
   });
 
-  function openSidebar() { $('#sidebar').classList.add('sidebar-open'); $('#sidebar-scrim').classList.remove('hidden'); }
-  function closeSidebar() { if ($('#sidebar')) $('#sidebar').classList.remove('sidebar-open'); if ($('#sidebar-scrim')) $('#sidebar-scrim').classList.add('hidden'); }
+  function openSidebar() {
+    $('#sidebar').classList.add('sidebar-open');
+    $('#sidebar-scrim').classList.remove('hidden');
+    $('#mobile-menu-button').setAttribute('aria-expanded', 'true');
+    $('#mobile-menu-button').setAttribute('aria-label', 'Close navigation');
+  }
+  function closeSidebar() {
+    if ($('#sidebar')) $('#sidebar').classList.remove('sidebar-open');
+    if ($('#sidebar-scrim')) $('#sidebar-scrim').classList.add('hidden');
+    if ($('#mobile-menu-button')) {
+      $('#mobile-menu-button').setAttribute('aria-expanded', 'false');
+      $('#mobile-menu-button').setAttribute('aria-label', 'Open navigation');
+    }
+  }
 
   async function boot() {
     $('#footer-year').textContent = new Date().getFullYear();
