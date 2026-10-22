@@ -234,6 +234,16 @@ def test_validation_rejects_bad_product_values_and_does_not_echo_secret(client):
         "email": "not-an-email", "password": "correct-horse-123", "organization_name": "Store",
     })
     assert bad_email.status_code == 422
+
+    blank_signup_password = client.post("/api/auth/signup", json={
+        "email": "blank-password@example.com", "password": "        ", "organization_name": "Store",
+    })
+    assert blank_signup_password.status_code == 422
+    blank_login_password = client.post("/api/auth/login", json={
+        "email": "owner@example.com", "password": "   ",
+    })
+    assert blank_login_password.status_code == 422
+
     too_long = "sensitive-secret-value" * 8
     bad_login = client.post("/api/auth/login", json={"email": "owner@example.com", "password": too_long})
     assert bad_login.status_code == 422
