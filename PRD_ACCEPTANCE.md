@@ -26,11 +26,13 @@ StockFlow MVP v0.1 intentionally targets the scope-reduced six-hour MVP, not an 
 - [x] Store the default threshold per organization and validate it as a non-negative integer.
 
 ## Local quality checks
-- [x] Pytest coverage for authentication, CRUD, input validation, thresholds and tenant isolation.
-- [x] Static frontend assets served by FastAPI.
-- [x] Postman collection for the main API workflow.
-- [x] GitHub Actions workflow for Python compilation, JavaScript syntax and tests.
-- [x] Local SQLite; SQLAlchemy URL configuration also supports MySQL and PostgreSQL.
+- [x] Pytest coverage for authentication, CRUD, input validation, threshold fallback/equality, tenant isolation and production configuration guards.
+- [x] Live HTTP smoke test against a running Uvicorn server: health, assets, signup/login, product CRUD/search, dashboard, thresholds, stock adjustment, tenant isolation and delete.
+- [x] Search treats SQL `%` and `_` as literal characters; numeric inventory fields reject booleans.
+- [x] Static frontend assets served by FastAPI with security headers and a Content Security Policy.
+- [x] Postman collection for the main API workflow with a generated unique signup email.
+- [x] GitHub Actions checks dependency consistency, Python compilation, JavaScript syntax, Postman JSON, Render YAML, pytest and the live HTTP smoke test.
+- [x] Local SQLite; SQLAlchemy URL configuration supports MySQL and PostgreSQL. Production requires a configured non-SQLite database URL.
 
 ## Out of scope by design
 No staff/invites/RBAC, multi-warehouse, variants, categories, product-specific images, channel integrations, orders, purchase orders, suppliers, email alerts, CSV imports, billing, payment flows, charts or advanced reporting.
