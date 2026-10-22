@@ -14,6 +14,13 @@ class SignupIn(RequestSchema):
     password: str = Field(min_length=8, max_length=128)
     organization_name: str = Field(min_length=2, max_length=80)
 
+    @field_validator("password")
+    @classmethod
+    def reject_blank_password(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Password cannot be blank")
+        return value
+
     @field_validator("email")
     @classmethod
     def validate_email(cls, value: str) -> str:
@@ -34,6 +41,13 @@ class SignupIn(RequestSchema):
 class LoginIn(RequestSchema):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def reject_blank_password(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Password cannot be blank")
+        return value
 
     @field_validator("email")
     @classmethod
