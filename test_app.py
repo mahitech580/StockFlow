@@ -310,8 +310,8 @@ def test_health_static_files_and_security_headers(client):
 def test_theme_controls_and_search_have_no_command_k_hint(client):
     html = client.get("/").text
     assert 'href="./"' in html
-    assert 'href="style.css?v=20261023-auth-fix"' in html
-    assert 'src="script.js?v=20261023-auth-fix" defer' in html
+    assert 'href="style.css?v=20261023-marketing"' in html
+    assert 'src="script.js?v=20261023-marketing" defer' in html
     assert 'id="theme-toggle"' in html
     assert 'id="auth-theme-toggle"' in html
     assert 'id="mobile-menu-button"' in html
