@@ -101,12 +101,36 @@
     window.setTimeout(() => { node.classList.add('toast-out'); window.setTimeout(() => node.remove(), 250); }, 3600);
   }
 
+  function closeMarketingNav() {
+    const header = $('#marketing-view .marketing-header');
+    const toggle = $('#marketing-menu-toggle');
+    if (header) header.classList.remove('nav-open');
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Open website navigation');
+    }
+  }
+  function showLanding() {
+    if ($('#marketing-view')) $('#marketing-view').classList.remove('hidden');
+    authView.classList.add('hidden');
+    appShell.classList.add('hidden');
+    closeSidebar();
+    closeMarketingNav();
+    document.title = 'StockFlow — Inventory, in control';
+  }
   function showAuth(mode = 'login', error = '') {
     state.authMode = mode;
+    if ($('#marketing-view')) $('#marketing-view').classList.add('hidden');
     authView.classList.remove('hidden');
     appShell.classList.add('hidden');
     closeSidebar();
+    closeMarketingNav();
     renderAuth(mode, error);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    window.setTimeout(() => {
+      const field = $('#auth-email');
+      if (field) field.focus({ preventScroll: true });
+    }, 20);
   }
   function renderAuth(mode, error = '', values = {}) {
     state.authMode = mode;
@@ -127,7 +151,9 @@
   }
   function showApp(user) {
     state.user = user;
+    if ($('#marketing-view')) $('#marketing-view').classList.add('hidden');
     authView.classList.add('hidden');
+    closeMarketingNav();
     appShell.classList.remove('hidden');
     $('#workspace-name').textContent = user.organization_name || 'My Workspace';
     $('#workspace-avatar').textContent = initials(user.organization_name);
@@ -355,9 +381,22 @@
   }
 
   document.addEventListener('click', async (event) => {
-    const target = event.target.closest('button, [data-action], [data-page], [data-filter]');
+    const target = event.target.closest('button, [data-action], [data-page], [data-filter], a[href^="#"]');
     if (!target) return;
-    if (target.dataset.authMode) { renderAuth(target.dataset.authMode); return; }
+    if (target.matches('.marketing-nav a, .marketing-footer nav a, .hero-scroll-cue, .feature-link, .marketing-brand')) {
+      closeMarketingNav();
+      return;
+    }
+    if (target.id === 'marketing-menu-toggle') {
+      const header = $('#marketing-view .marketing-header');
+      const toggle = $('#marketing-menu-toggle');
+      const opened = header.classList.toggle('nav-open');
+      toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
+      toggle.setAttribute('aria-label', opened ? 'Close website navigation' : 'Open website navigation');
+      return;
+    }
+    if (target.id === 'marketing-theme-toggle') { toggleTheme(); return; }
+    if (target.dataset.authMode) { showAuth(target.dataset.authMode); return; }
     if (target.dataset.page) {
       window.clearTimeout(state.searchTimer);
       state.filter = 'all';
@@ -369,7 +408,7 @@
     if (target.dataset.filter) { state.filter = target.dataset.filter; await renderPage('products'); return; }
     const action = target.dataset.action;
     if (!action) return;
-    if (action === 'demo-access') { try { await openDemoWorkspace(); } catch (error) { renderAuth(state.authMode, error.message); } return; }
+    if (action === 'demo-access') { try { await openDemoWorkspace(); } catch (error) { showAuth(state.authMode, error.message); } return; }
     if (action === 'new-product') { await openProductModal(); return; }
     if (action === 'review-low-stock') { state.filter = 'low'; state.query = ''; $('#global-search-input').value = ''; await renderPage('products'); return; }
     if (action === 'load-sample-data') { await loadSampleCatalog(target); return; }
@@ -484,6 +523,7 @@
   });
   $('#theme-toggle').addEventListener('click', toggleTheme);
   $('#auth-theme-toggle').addEventListener('click', toggleTheme);
+  if ($('#marketing-theme-toggle')) $('#marketing-theme-toggle').addEventListener('click', toggleTheme);
   $('#mobile-menu-button').addEventListener('click', () => {
     if ($('#sidebar').classList.contains('sidebar-open')) closeSidebar();
     else openSidebar();
@@ -526,11 +566,32 @@
     }
   }
 
+  function setupRevealAnimations() {
+    const elements = $('.reveal');
+    if (!elements.length) return;
+    if (!('IntersectionObserver' in window)) {
+      elements.forEach((element) => element.classList.add('is-visible'));
+      return;
+    }
+    document.documentElement.classList.add('motion-ready');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -32px 0px' });
+    elements.forEach((element) => observer.observe(element));
+  }
+
   async function boot() {
     $('#footer-year').textContent = new Date().getFullYear();
-    if (!state.token) { showAuth('login'); return; }
+    const marketingYear = $('#marketing-year');
+    if (marketingYear) marketingYear.textContent = new Date().getFullYear();
+    setupRevealAnimations();
+    if (!state.token) { showLanding(); return; }
     try { const data = await api('/api/me'); showApp(data.user); }
-    catch (_) { state.token = null; localStorage.removeItem('stockflow_token'); showAuth('login'); }
+    catch (_) { state.token = null; localStorage.removeItem('stockflow_token'); showLanding(); }
   }
   boot();
 })();
