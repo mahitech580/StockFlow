@@ -481,3 +481,28 @@ def test_production_rejects_wildcard_cors_origins():
     )
     assert result.returncode != 0
     assert "Production CORS_ORIGINS must list explicit origins" in result.stderr
+
+
+def test_startup_rejects_out_of_range_token_lifetimes():
+    import os
+    import subprocess
+    import sys
+
+    base_environment = os.environ.copy()
+    base_environment.update({
+        "APP_ENV": "production",
+        "SECRET_KEY": "production-ttl-test-secret-with-more-than-thirty-two-characters",
+        "DATABASE_URL": "postgresql+psycopg://test:test@127.0.0.1:5432/stockflow",
+    })
+    for ttl in ("0", "169"):
+        environment = base_environment.copy()
+        environment["TOKEN_TTL_HOURS"] = ttl
+        result = subprocess.run(
+            [sys.executable, "-c", "import auth"],
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert result.returncode != 0
+        assert "TOKEN_TTL_HOURS must be an integer between 1 and 168" in result.stderr
