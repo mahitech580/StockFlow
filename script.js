@@ -436,7 +436,10 @@
   });
   $('#theme-toggle').addEventListener('click', toggleTheme);
   $('#auth-theme-toggle').addEventListener('click', toggleTheme);
-  $('#mobile-menu-button').addEventListener('click', openSidebar);
+  $('#mobile-menu-button').addEventListener('click', () => {
+    if ($('#sidebar').classList.contains('sidebar-open')) closeSidebar();
+    else openSidebar();
+  });
   $('#sidebar-scrim').addEventListener('click', closeSidebar);
   $('#logout-button').addEventListener('click', () => {
     state.token = null; state.user = null; localStorage.removeItem('stockflow_token'); showAuth('login');
