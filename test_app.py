@@ -243,6 +243,7 @@ def test_health_static_files_and_security_headers(client):
 
 def test_theme_controls_and_search_have_no_command_k_hint(client):
     html = client.get("/").text
+    assert 'href="./"' in html
     assert 'href="style.css"' in html
     assert 'src="script.js" defer' in html
     assert 'id="theme-toggle"' in html
