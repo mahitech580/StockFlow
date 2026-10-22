@@ -317,6 +317,8 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert 'aria-live="polite"' in html
     assert 'aria-busy="false"' in html
     assert 'placeholder="Search products..."' in html
+    assert 'id="global-search-input"' in html
+    assert 'maxlength="120"' in html
     assert "⌘ K" not in html
     css = client.get("/style.css").text
     assert 'data-theme="dark"' in css
