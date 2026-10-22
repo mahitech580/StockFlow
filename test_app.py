@@ -339,3 +339,23 @@ def test_clearing_product_threshold_falls_back_to_workspace_default(client):
     assert updated["low_stock_threshold"] is None
     assert updated["effective_low_stock_threshold"] == 5
     assert updated["is_low_stock"] is True
+
+
+def test_production_startup_requires_explicit_database_url():
+    import os
+    import subprocess
+    import sys
+
+    environment = os.environ.copy()
+    environment["APP_ENV"] = "production"
+    environment.pop("DATABASE_URL", None)
+    environment["SECRET_KEY"] = "production-test-secret-with-more-than-thirty-two-characters"
+    result = subprocess.run(
+        [sys.executable, "-c", "import db"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode != 0
+    assert "DATABASE_URL must be configured in production" in result.stderr
