@@ -359,3 +359,19 @@ def test_production_startup_requires_explicit_database_url():
     )
     assert result.returncode != 0
     assert "DATABASE_URL must be configured in production" in result.stderr
+
+
+def test_database_url_normalization_for_supported_sql_engines(monkeypatch):
+    from db import configured_database_url
+
+    monkeypatch.setenv("DATABASE_URL", "postgres://app_user:secret@db.example.test:5432/stockflow")
+    assert configured_database_url() == "postgresql+psycopg://app_user:secret@db.example.test:5432/stockflow"
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://app_user:secret@db.example.test:5432/stockflow")
+    assert configured_database_url() == "postgresql+psycopg://app_user:secret@db.example.test:5432/stockflow"
+
+    monkeypatch.setenv("DATABASE_URL", "mysql://app_user:secret@db.example.test:3306/stockflow")
+    assert configured_database_url() == "mysql+pymysql://app_user:secret@db.example.test:3306/stockflow"
+
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///./stockflow.db")
+    assert configured_database_url() == "sqlite:///./stockflow.db"
