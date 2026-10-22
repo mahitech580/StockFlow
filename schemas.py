@@ -103,7 +103,7 @@ class ProductUpdate(RequestSchema):
     quantity_on_hand: int | None = Field(default=None, ge=0, le=2_000_000_000, strict=True)
     cost_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     selling_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
-    low_stock_threshold: int | None = Field(default=None, ge=0, le=2_000_000_000)
+    low_stock_threshold: int | None = Field(default=None, ge=0, le=2_000_000_000, strict=True)
 
     @field_validator("cost_price", "selling_price", mode="before")
     @classmethod
