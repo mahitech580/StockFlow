@@ -126,7 +126,7 @@
     closeSidebar();
     closeMarketingNav();
     renderAuth(mode, error);
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
     window.setTimeout(() => {
       const field = $('#auth-email');
       if (field) field.focus({ preventScroll: true });
@@ -534,7 +534,7 @@
     toast('You have been signed out safely.');
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') { closeModal(); closeSidebar(); return; }
+    if (event.key === 'Escape') { closeModal(); closeSidebar(); closeMarketingNav(); return; }
     if (event.key !== 'Tab' || !modalRoot.querySelector('[role="dialog"]')) return;
     const focusable = [...modalRoot.querySelectorAll(
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
