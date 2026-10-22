@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/live-api-smoke.yml"
       - "scripts/live_smoke_test.mjs"
+      - "index.html"
   workflow_dispatch:
 
 permissions:
@@ -27,4 +28,5 @@ jobs:
       - name: Exercise production API
         env:
           STOCKFLOW_API_BASE_URL: https://citireafvqtqkuxvmail.supabase.co/functions/v1/stockflow-api
+          STOCKFLOW_API_KEY: sb_publishable_twSAXRjaA43JiAdRRTfzBA_sizr7Fvc
         run: node scripts/live_smoke_test.mjs
