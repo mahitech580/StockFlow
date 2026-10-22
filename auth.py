@@ -25,9 +25,12 @@ if APP_ENV in {"production", "prod"} and (
     raise RuntimeError("Production requires a unique SECRET_KEY with at least 32 characters; do not use a placeholder.")
 SECRET_KEY = os.getenv("SECRET_KEY", "local-development-secret-change-before-deploy").encode("utf-8")
 try:
-    TOKEN_TTL_HOURS = min(168, max(1, int(os.getenv("TOKEN_TTL_HOURS", "12"))))
+    _token_ttl_hours = int(os.getenv("TOKEN_TTL_HOURS", "12"))
 except ValueError as exc:
     raise RuntimeError("TOKEN_TTL_HOURS must be an integer between 1 and 168") from exc
+if not 1 <= _token_ttl_hours <= 168:
+    raise RuntimeError("TOKEN_TTL_HOURS must be an integer between 1 and 168")
+TOKEN_TTL_HOURS = _token_ttl_hours
 PASSWORD_ITERATIONS = 310_000
 
 
