@@ -18,7 +18,7 @@
   const appShell = $('#app-shell');
   const modalRoot = $('#modal-root');
   const THEME_KEY = 'stockflow_theme';
-  const API_BASE_URL = String(document.querySelector('meta[name="stockflow-api-base-url"]')?.content || '').trim().replace(/\\/+$/, '');
+  const API_BASE_URL = String(document.querySelector('meta[name="stockflow-api-base-url"]')?.content || '').trim().replace(/\/+$/, '');
   let modalTrigger = null;
 
   function applyTheme(theme, persist = false) {
