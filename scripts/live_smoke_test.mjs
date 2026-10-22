@@ -38,6 +38,7 @@ const preflight = await fetch(base + "/api/auth/login", {
 check(preflight.status === 204, "CORS preflight returned " + preflight.status);
 check(preflight.headers.get("access-control-allow-origin") === "*", "CORS origin header missing");
 check((preflight.headers.get("access-control-allow-headers") || "").toLowerCase().includes("authorization"), "CORS authorization header not allowed");
+check((preflight.headers.get("access-control-allow-headers") || "").toLowerCase().includes("apikey"), "CORS API-key header not allowed");
 
 const a = await call("/api/auth/signup", { method:"POST", expected:201, body:{email:emailA,password,organization_name:"CI " + suffix} });
 const tokenA = a.data.access_token;
@@ -80,6 +81,15 @@ const bSettings = await call("/api/settings", {token:tokenB});
 check(bSettings.data.default_low_stock_threshold === 5, "Settings leaked across organizations");
 await call("/api/products/" + item.id, {method:"DELETE",token:tokenLogin,expected:204});
 await call("/api/products/" + item.id, {token:tokenLogin,expected:404});
+
+const demoSessionId = randomUUID();
+const demo = await call("/api/auth/demo", {method:"POST",expected:201,body:{session_id:demoSessionId}});
+check(demo.data.user.is_demo === true, "Demo access did not flag its session");
+check(demo.data.user.organization_id !== a.data.user.organization_id, "Demo workspace must be isolated from registered accounts");
+const demoMe = await call("/api/me", {token:demo.data.access_token});
+check(demoMe.data.user.is_demo === true, "Demo mode label did not persist through /api/me");
+const demoProducts = await call("/api/products", {token:demo.data.access_token});
+check(demoProducts.data.count === 0, "Demo workspace unexpectedly includes another user's products");
 
 console.log("PASS: live API health + database");
 console.log("PASS: browser CORS preflight");
