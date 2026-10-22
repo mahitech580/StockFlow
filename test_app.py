@@ -186,6 +186,10 @@ def test_stock_adjustment_records_latest_note_and_rejects_negative_result(client
     assert response.json()["item"]["last_stock_note"] == "Delivery received"
     invalid = client.post(path, headers=auth(token), json={"delta": -99, "note": "Too much"})
     assert invalid.status_code == 422
+    zero = client.post(path, headers=auth(token), json={"delta": 0, "note": "No change"})
+    assert zero.status_code == 422
+    short_note = client.post(path, headers=auth(token), json={"delta": 1, "note": "ok"})
+    assert short_note.status_code == 422
     assert client.get("/api/products/" + str(item["id"]), headers=auth(token)).json()["item"]["quantity_on_hand"] == 17
 
 
