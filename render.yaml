@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: stockflow-mvp
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stockflow-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TOKEN_TTL_HOURS
+        value: "12"
+databases:
+  - name: stockflow-db
+    databaseName: stockflow
+    user: stockflow_user
+    plan: free
+    region: singapore
