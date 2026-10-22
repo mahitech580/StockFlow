@@ -32,6 +32,8 @@ if not 1 <= _token_ttl_hours <= 168:
     raise RuntimeError("TOKEN_TTL_HOURS must be an integer between 1 and 168")
 TOKEN_TTL_HOURS = _token_ttl_hours
 PASSWORD_ITERATIONS = 310_000
+MIN_ACCEPTED_PASSWORD_ITERATIONS = 100_000
+MAX_ACCEPTED_PASSWORD_ITERATIONS = 1_000_000
 
 
 def _b64url(data: bytes) -> str:
@@ -53,7 +55,10 @@ def verify_password(password: str, encoded: str) -> bool:
         algorithm, iterations, salt, expected = encoded.split("$", 3)
         if algorithm != "pbkdf2_sha256":
             return False
-        actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), _unb64url(salt), int(iterations))
+        rounds = int(iterations)
+        if not MIN_ACCEPTED_PASSWORD_ITERATIONS <= rounds <= MAX_ACCEPTED_PASSWORD_ITERATIONS:
+            return False
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), _unb64url(salt), rounds)
         return hmac.compare_digest(_b64url(actual), expected)
     except (ValueError, TypeError):
         return False
