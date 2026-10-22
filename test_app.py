@@ -601,8 +601,8 @@ def test_postman_collection_covers_authentication_and_token_reuse():
 
     signup_body = json.loads(signup["request"]["body"]["raw"])
     login_body = json.loads(login["request"]["body"]["raw"])
-    assert signup_body["email"] == "{{email}"
-    assert login_body["email"] == "{{email}"
+    assert signup_body["email"] == "{{email}}"
+    assert login_body["email"] == "{{email}}"
     pre_request = "\\n".join(
         line
         for event in signup.get("event", [])
