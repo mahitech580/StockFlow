@@ -32,7 +32,7 @@ const preflight = await fetch(base + "/api/auth/login", {
   headers: {
     Origin: "https://mahitech580.github.io",
     "Access-Control-Request-Method": "POST",
-    "Access-Control-Request-Headers": "content-type,authorization",
+    "Access-Control-Request-Headers": "content-type,authorization,apikey",
   },
 });
 check(preflight.status === 204, "CORS preflight returned " + preflight.status);
