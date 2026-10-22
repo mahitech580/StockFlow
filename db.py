@@ -12,11 +12,20 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env", override=False)
+APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 
 
 def configured_database_url() -> str:
-    """Return normalized SQLAlchemy URL for SQLite, PostgreSQL, or MySQL."""
-    url = os.getenv("DATABASE_URL", "sqlite:///./stockflow.db").strip()
+    """Return normalized URL; never silently use ephemeral SQLite in production."""
+    raw_url = os.getenv("DATABASE_URL", "").strip()
+    if not raw_url:
+        if APP_ENV in {"production", "prod"}:
+            raise RuntimeError(
+                "DATABASE_URL must be configured in production. "
+                "Use a durable external database; SQLite on an ephemeral host filesystem is not safe."
+            )
+        raw_url = "sqlite:///./stockflow.db"
+    url = raw_url
     if url.startswith("postgres://"):
         return "postgresql+psycopg://" + url[len("postgres://"):]
     if url.startswith("postgresql://"):
