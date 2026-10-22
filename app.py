@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from auth import create_access_token, get_current_user, hash_password, verify_password
-from db import BASE_DIR, get_db, init_db
+from db import BASE_DIR, Base, get_db, init_db
 from models import Organization, Product, User, utc_now
 from schemas import LoginIn, ProductCreate, ProductUpdate, SettingsUpdate, SignupIn, StockAdjustmentIn
 
