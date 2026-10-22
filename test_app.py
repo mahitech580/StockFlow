@@ -1,0 +1,241 @@
+from contextlib import asynccontextmanager
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app import Base, app, get_db
+
+
+@pytest.fixture(autouse=True)
+def isolate_application_startup(monkeypatch):
+    @asynccontextmanager
+    async def no_startup(_application):
+        yield
+    monkeypatch.setattr(app.router, "lifespan_context", no_startup)
+
+
+@pytest.fixture()
+def client():
+    test_engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    test_sessions = sessionmaker(bind=test_engine, autoflush=False, expire_on_commit=False)
+    Base.metadata.create_all(bind=test_engine)
+
+    def override_get_db():
+        db = test_sessions()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=test_engine)
+    test_engine.dispose()
+
+
+def signup(client, email="owner@example.com", org="Northstar Store"):
+    response = client.post("/api/auth/signup", json={
+        "email": email,
+        "password": "correct-horse-123",
+        "organization_name": org,
+    })
+    assert response.status_code == 201, response.text
+    data = response.json()
+    return data["access_token"], data["user"]
+
+
+def auth(token):
+    return {"Authorization": "Bearer " + token}
+
+
+def make_product(client, token, **overrides):
+    payload = {
+        "name": "Organic Green Tea",
+        "sku": "TEA-001",
+        "quantity_on_hand": 3,
+        "cost_price": 80,
+        "selling_price": 125,
+    }
+    payload.update(overrides)
+    response = client.post("/api/products", headers=auth(token), json=payload)
+    assert response.status_code == 201, response.text
+    return response.json()["item"]
+
+
+def test_signup_login_me_and_passwords_are_not_returned(client):
+    token, user = signup(client)
+    assert user["email"] == "owner@example.com"
+    assert user["organization_name"] == "Northstar Store"
+    assert "password" not in user and "password_hash" not in user
+    assert client.get("/api/me", headers=auth(token)).json()["user"]["id"] == user["id"]
+    login = client.post("/api/auth/login", json={"email": "OWNER@example.com", "password": "correct-horse-123"})
+    assert login.status_code == 200
+    assert login.json()["access_token"]
+
+
+def test_duplicate_email_is_rejected(client):
+    signup(client)
+    response = client.post("/api/auth/signup", json={
+        "email": "OWNER@example.com", "password": "another-password-456", "organization_name": "Other",
+    })
+    assert response.status_code == 409
+
+
+def test_login_rejects_wrong_password_and_missing_auth_is_blocked(client):
+    signup(client)
+    wrong = client.post("/api/auth/login", json={"email": "owner@example.com", "password": "wrong-password"})
+    assert wrong.status_code == 401
+    assert client.get("/api/products").status_code == 401
+
+
+def test_product_crud_dashboard_and_low_stock(client):
+    token, _ = signup(client)
+    item = make_product(client, token)
+    assert item["sku"] == "TEA-001"
+    assert item["effective_low_stock_threshold"] == 5
+    assert item["is_low_stock"] is True
+
+    dashboard = client.get("/api/dashboard", headers=auth(token)).json()
+    assert dashboard["total_products"] == 1
+    assert dashboard["total_units"] == 3
+    assert dashboard["low_stock_count"] == 1
+    assert dashboard["low_stock_items"][0]["name"] == "Organic Green Tea"
+
+    updated = client.patch("/api/products/" + str(item["id"]), headers=auth(token), json={"quantity_on_hand": 20})
+    assert updated.status_code == 200
+    assert updated.json()["item"]["is_low_stock"] is False
+    assert client.get("/api/products/" + str(item["id"]), headers=auth(token)).status_code == 200
+    assert client.delete("/api/products/" + str(item["id"]), headers=auth(token)).status_code == 204
+    assert client.get("/api/products", headers=auth(token)).json()["count"] == 0
+
+
+def test_products_can_share_sku_across_organizations_but_not_within_one(client):
+    token_a, _ = signup(client, "owner-a@example.com", "Store A")
+    token_b, _ = signup(client, "owner-b@example.com", "Store B")
+    make_product(client, token_a, sku="COMMON-1")
+    duplicate = client.post("/api/products", headers=auth(token_a), json={
+        "name": "Duplicate", "sku": "common-1", "quantity_on_hand": 1,
+    })
+    assert duplicate.status_code == 409
+    allowed = client.post("/api/products", headers=auth(token_b), json={
+        "name": "Different tenant", "sku": "COMMON-1", "quantity_on_hand": 2,
+    })
+    assert allowed.status_code == 201
+
+
+def test_tenant_isolation_for_listing_detail_update_and_delete(client):
+    token_a, _ = signup(client, "tenant-a@example.com", "Tenant A")
+    token_b, _ = signup(client, "tenant-b@example.com", "Tenant B")
+    item = make_product(client, token_a)
+    assert client.get("/api/products", headers=auth(token_b)).json()["count"] == 0
+    path = "/api/products/" + str(item["id"])
+    assert client.get(path, headers=auth(token_b)).status_code == 404
+    assert client.patch(path, headers=auth(token_b), json={"quantity_on_hand": 999}).status_code == 404
+    assert client.delete(path, headers=auth(token_b)).status_code == 404
+    assert client.get(path, headers=auth(token_a)).json()["item"]["quantity_on_hand"] == 3
+
+
+def test_search_matches_name_and_sku_case_insensitively(client):
+    token, _ = signup(client)
+    make_product(client, token, name="Copper Water Bottle", sku="HOME-BOT-01", quantity_on_hand=14)
+    make_product(client, token, name="Cotton Tote Bag", sku="BAG-42", quantity_on_hand=8)
+    by_name = client.get("/api/products?q=water", headers=auth(token)).json()
+    assert [item["sku"] for item in by_name["items"]] == ["HOME-BOT-01"]
+    by_sku = client.get("/api/products?q=bag-42", headers=auth(token)).json()
+    assert [item["name"] for item in by_sku["items"]] == ["Cotton Tote Bag"]
+
+
+def test_default_and_product_specific_thresholds(client):
+    token, _ = signup(client)
+    headers = auth(token)
+    defaulted = make_product(client, token, name="Default item", sku="DEFAULT-1", quantity_on_hand=4)
+    custom = make_product(client, token, name="Custom item", sku="CUSTOM-1", quantity_on_hand=4, low_stock_threshold=2)
+    assert defaulted["is_low_stock"] is True
+    assert custom["is_low_stock"] is False
+    saved = client.patch("/api/settings", headers=headers, json={"default_low_stock_threshold": 2})
+    assert saved.status_code == 200
+    items = {p["sku"]: p for p in client.get("/api/products", headers=headers).json()["items"]}
+    assert items["DEFAULT-1"]["is_low_stock"] is False
+    assert items["CUSTOM-1"]["effective_low_stock_threshold"] == 2
+
+
+def test_settings_are_scoped_to_each_organization(client):
+    token_a, _ = signup(client, "settings-a@example.com", "A")
+    token_b, _ = signup(client, "settings-b@example.com", "B")
+    client.patch("/api/settings", headers=auth(token_a), json={"default_low_stock_threshold": 9})
+    assert client.get("/api/settings", headers=auth(token_a)).json()["default_low_stock_threshold"] == 9
+    assert client.get("/api/settings", headers=auth(token_b)).json()["default_low_stock_threshold"] == 5
+
+
+def test_stock_adjustment_records_latest_note_and_rejects_negative_result(client):
+    token, _ = signup(client)
+    item = make_product(client, token, quantity_on_hand=10)
+    path = "/api/products/" + str(item["id"]) + "/adjust-stock"
+    response = client.post(path, headers=auth(token), json={"delta": 7, "note": "Delivery received"})
+    assert response.status_code == 200
+    assert response.json()["item"]["quantity_on_hand"] == 17
+    assert response.json()["item"]["last_stock_note"] == "Delivery received"
+    invalid = client.post(path, headers=auth(token), json={"delta": -99, "note": "Too much"})
+    assert invalid.status_code == 422
+    assert client.get("/api/products/" + str(item["id"]), headers=auth(token)).json()["item"]["quantity_on_hand"] == 17
+
+
+def test_stock_adjustment_cannot_cross_tenant_boundary(client):
+    token_a, _ = signup(client, "adjust-a@example.com", "A")
+    token_b, _ = signup(client, "adjust-b@example.com", "B")
+    item = make_product(client, token_a)
+    result = client.post("/api/products/" + str(item["id"]) + "/adjust-stock", headers=auth(token_b),
+                         json={"delta": 5, "note": "Cross-tenant attempt"})
+    assert result.status_code == 404
+
+
+def test_validation_rejects_bad_product_values_and_does_not_echo_secret(client):
+    token, _ = signup(client)
+    invalid = client.post("/api/products", headers=auth(token), json={
+        "name": "Invalid quantity", "sku": "BAD-1", "quantity_on_hand": -1,
+    })
+    assert invalid.status_code == 422
+    bad_email = client.post("/api/auth/signup", json={
+        "email": "not-an-email", "password": "correct-horse-123", "organization_name": "Store",
+    })
+    assert bad_email.status_code == 422
+    too_long = "sensitive-secret-value" * 8
+    bad_login = client.post("/api/auth/login", json={"email": "owner@example.com", "password": too_long})
+    assert bad_login.status_code == 422
+    assert too_long not in bad_login.text
+
+
+def test_health_static_files_and_security_headers(client):
+    assert client.get("/api/health").json() == {"status": "ok", "service": "stockflow", "database": "ok"}
+    home = client.get("/")
+    assert home.status_code == 200 and "StockFlow" in home.text
+    assert client.get("/style.css").status_code == 200
+    js = client.get("/script.js")
+    assert js.status_code == 200
+    assert "function renderDashboard" in js.text
+    assert "stock-adjust-form" in js.text
+    assert "load-sample-data" in js.text
+    assert client.get("/").headers["x-frame-options"] == "DENY"
+
+
+def test_theme_controls_and_search_have_no_command_k_hint(client):
+    html = client.get("/").text
+    assert 'id="theme-toggle"' in html
+    assert 'id="auth-theme-toggle"' in html
+    assert 'placeholder="Search products..."' in html
+    assert "⌘ K" not in html
+    css = client.get("/style.css").text
+    assert 'data-theme="dark"' in css
+    js = client.get("/script.js").text
+    assert "function applyTheme(theme, persist = false)" in js
+    assert "stockflow_theme" in js
+    assert "key.toLowerCase() === 'k'" not in js
