@@ -375,3 +375,20 @@ def test_database_url_normalization_for_supported_sql_engines(monkeypatch):
 
     monkeypatch.setenv("DATABASE_URL", "sqlite:///./stockflow.db")
     assert configured_database_url() == "sqlite:///./stockflow.db"
+
+
+def test_database_initialization_creates_required_tables(tmp_path, monkeypatch):
+    from sqlalchemy import create_engine, inspect
+    import db
+
+    database_file = tmp_path / "stockflow-startup-test.db"
+    startup_engine = create_engine(
+        "sqlite:///" + str(database_file).replace("\\", "/"),
+        connect_args={"check_same_thread": False},
+    )
+    monkeypatch.setattr(db, "engine", startup_engine)
+    db.init_db()
+    table_names = set(inspect(startup_engine).get_table_names())
+    assert {"organizations", "organization_settings", "users", "products"} <= table_names
+    assert database_file.exists()
+    startup_engine.dispose()
