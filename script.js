@@ -85,7 +85,9 @@
         localStorage.removeItem('stockflow_token');
         showAuth('login');
       }
-      throw new Error(detail);
+      const apiError = new Error(detail);
+      apiError.status = response.status;
+      throw apiError;
     }
     return data;
   }
@@ -119,6 +121,7 @@
       '<div class="form-field"><label for="auth-password">Password</label><input class="form-control" id="auth-password" name="password" type="password" placeholder="' + (signup ? 'At least 8 characters' : 'Enter your password') + '" minlength="' + (signup ? '8' : '1') + '" maxlength="128" required autocomplete="' + (signup ? 'new-password' : 'current-password') + '"></div>' +
       (signup ? '<div class="form-field"><label for="confirm-password">Confirm password</label><input class="form-control" id="confirm-password" name="confirm_password" type="password" minlength="8" maxlength="128" required autocomplete="new-password"></div>' : '') +
       '<button type="submit" class="auth-submit">' + (signup ? 'Create account' : 'Sign in to StockFlow') + ' <span aria-hidden="true">→</span></button></form>' +
+      '<p class="auth-switch"><button class="text-button" type="button" data-action="demo-access">Try demo access — no account needed</button></p>' +
       '<p class="auth-switch">' + (signup ? 'Already have an account?' : 'New to StockFlow?') +
       ' <button class="text-button" type="button" data-auth-mode="' + (signup ? 'login' : 'signup') + '">' + (signup ? 'Sign in' : 'Create an account') + '</button></p>';
   }
@@ -129,10 +132,33 @@
     $('#workspace-name').textContent = user.organization_name || 'My Workspace';
     $('#workspace-avatar').textContent = initials(user.organization_name);
     $('#user-email').textContent = user.email;
+    const workspaceSubtitle = $('.workspace-info span');
+    if (workspaceSubtitle) workspaceSubtitle.textContent = user.is_demo ? 'Demo workspace · isolated data' : 'Owner workspace';
     $('#user-avatar').textContent = initials(user.email);
     $('#today-label').textContent = new Intl.DateTimeFormat('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date());
     $('#footer-year').textContent = new Date().getFullYear();
     renderPage('dashboard');
+  }
+  async function openDemoWorkspace() {
+    let sessionId = localStorage.getItem('stockflow_demo_session_id');
+    if (!sessionId) {
+      sessionId = window.crypto && typeof window.crypto.randomUUID === 'function'
+        ? window.crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+          const random = Math.floor(Math.random() * 16);
+          return (char === 'x' ? random : (random & 3) | 8).toString(16);
+        });
+      localStorage.setItem('stockflow_demo_session_id', sessionId);
+    }
+    const data = await api('/api/auth/demo', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId })
+    });
+    state.token = data.access_token;
+    state.user = data.user;
+    localStorage.setItem('stockflow_token', state.token);
+    showApp(data.user);
+    toast('You are in a private demo workspace. No existing account is needed.', 'success', 'Demo mode');
   }
   function setActivePage(page) {
     state.page = page;
@@ -343,6 +369,7 @@
     if (target.dataset.filter) { state.filter = target.dataset.filter; await renderPage('products'); return; }
     const action = target.dataset.action;
     if (!action) return;
+    if (action === 'demo-access') { try { await openDemoWorkspace(); } catch (error) { renderAuth(state.authMode, error.message); } return; }
     if (action === 'new-product') { await openProductModal(); return; }
     if (action === 'review-low-stock') { state.filter = 'low'; state.query = ''; $('#global-search-input').value = ''; await renderPage('products'); return; }
     if (action === 'load-sample-data') { await loadSampleCatalog(target); return; }
@@ -373,7 +400,13 @@
         localStorage.setItem('stockflow_token', state.token);
         showApp(data.user);
         toast('Welcome back to your workspace.');
-      } catch (error) { renderAuth('login', error.message, { email: String(values.get('email') || '').trim() }); }
+      } catch (error) {
+        if ([401, 409, 422].includes(error.status)) {
+          try { await openDemoWorkspace(); return; }
+          catch (demoError) { renderAuth('login', demoError.message, { email: String(values.get('email') || '').trim() }); return; }
+        }
+        renderAuth('login', error.message, { email: String(values.get('email') || '').trim() });
+      }
     }
     if (form.id === 'signup-form') {
       event.preventDefault();
@@ -383,8 +416,8 @@
         organization_name: String(values.get('organization_name') || '').trim(),
         email: String(values.get('email') || '').trim()
       };
-      if (password !== String(values.get('confirm_password') || '')) { renderAuth('signup', 'Your passwords do not match.', authValues); return; }
-      if (password.length < 8) { renderAuth('signup', 'Use at least 8 characters for your password.', authValues); return; }
+      if (password !== String(values.get('confirm_password') || '')) { try { await openDemoWorkspace(); } catch (error) { renderAuth('signup', error.message, authValues); } return; }
+      if (password.length < 8) { try { await openDemoWorkspace(); } catch (error) { renderAuth('signup', error.message, authValues); } return; }
       try {
         const data = await api('/api/auth/signup', { method: 'POST', body: JSON.stringify({
           organization_name: authValues.organization_name,
@@ -394,7 +427,13 @@
         localStorage.setItem('stockflow_token', state.token);
         showApp(data.user);
         toast('Your workspace is ready. Add your first product to begin.');
-      } catch (error) { renderAuth('signup', error.message, authValues); }
+      } catch (error) {
+        if ([409, 422].includes(error.status)) {
+          try { await openDemoWorkspace(); return; }
+          catch (demoError) { renderAuth('signup', demoError.message, authValues); return; }
+        }
+        renderAuth('signup', error.message, authValues);
+      }
     }
     if (form.id === 'product-form') { event.preventDefault(); await handleProductSubmit(form); }
     if (form.id === 'stock-adjust-form') {
