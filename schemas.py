@@ -64,6 +64,13 @@ class ProductCreate(RequestSchema):
     selling_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     low_stock_threshold: int | None = Field(default=None, ge=0, le=2_000_000_000, strict=True)
 
+    @field_validator("cost_price", "selling_price", mode="before")
+    @classmethod
+    def reject_boolean_prices(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("Price must be a number, not a boolean")
+        return value
+
     @field_validator("name")
     @classmethod
     def clean_name(cls, value: str) -> str:
@@ -97,6 +104,13 @@ class ProductUpdate(RequestSchema):
     cost_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     selling_price: float | None = Field(default=None, ge=0, le=1_000_000_000)
     low_stock_threshold: int | None = Field(default=None, ge=0, le=2_000_000_000)
+
+    @field_validator("cost_price", "selling_price", mode="before")
+    @classmethod
+    def reject_boolean_prices(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("Price must be a number, not a boolean")
+        return value
 
     @field_validator("name")
     @classmethod
