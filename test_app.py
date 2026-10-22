@@ -310,6 +310,14 @@ def test_health_static_files_and_security_headers(client):
 def test_theme_controls_and_search_have_no_command_k_hint(client):
     html = client.get("/").text
     assert 'href="./"' in html
+    assert 'id="marketing-view" class="marketing-shell"' in html
+    assert 'id="marketing-nav"' in html
+    assert 'href="#features"' in html
+    assert 'href="#workflow"' in html
+    assert 'href="#preview"' in html
+    assert 'href="#faq"' in html
+    assert 'id="auth-view" class="auth-view hidden"' in html
+    assert 'data-action="demo-access"' in html
     assert 'href="style.css?v=20261023-marketing"' in html
     assert 'src="script.js?v=20261023-marketing" defer' in html
     assert 'id="theme-toggle"' in html
