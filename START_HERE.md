@@ -25,7 +25,19 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 ## Verify
 
-In a second terminal, activate the environment and run `pytest -q`.
+In a second terminal, activate the environment and run the isolated test suite:
+
+```powershell
+pytest -q
+```
+
+With the app still running in the first terminal, run the live HTTP workflow check:
+
+```powershell
+python smoke_test.py
+```
+
+The smoke test creates disposable test accounts and products. Run it only against a fresh local/test database, not a production workspace.
 
 ## Before deployment
 
