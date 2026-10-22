@@ -209,8 +209,12 @@ def list_products(
     statement = select(Product).where(Product.organization_id == user.organization_id)
     term = q.strip()
     if term:
-        pattern = f"%{term}%"
-        statement = statement.where(or_(Product.name.ilike(pattern), Product.sku.ilike(pattern)))
+        escaped_term = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped_term}%"
+        statement = statement.where(or_(
+            Product.name.ilike(pattern, escape="\\"),
+            Product.sku.ilike(pattern, escape="\\"),
+        ))
     products = db.scalars(statement.order_by(Product.updated_at.desc(), Product.name.asc())).all()
     return {"items": [_product_json(p, organization) for p in products], "count": len(products)}
 
