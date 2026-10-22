@@ -108,7 +108,12 @@ def test_product_crud_dashboard_and_low_stock(client):
     assert dashboard["total_products"] == 1
     assert dashboard["total_units"] == 3
     assert dashboard["low_stock_count"] == 1
-    assert dashboard["low_stock_items"][0]["name"] == "Organic Green Tea"
+    low_item = dashboard["low_stock_items"][0]
+    assert low_item["name"] == "Organic Green Tea"
+    assert low_item["sku"] == "TEA-001"
+    assert low_item["quantity_on_hand"] == 3
+    assert low_item["effective_low_stock_threshold"] == 5
+    assert low_item["is_low_stock"] is True
 
     updated = client.patch("/api/products/" + str(item["id"]), headers=auth(token), json={"quantity_on_hand": 20})
     assert updated.status_code == 200
