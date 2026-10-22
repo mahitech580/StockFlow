@@ -10,7 +10,8 @@
     query: '',
     filter: 'all',
     products: [],
-    modalBusy: false
+    modalBusy: false,
+    renderSequence: 0
   };
   const pageContent = $('#page-content');
   const authView = $('#auth-view');
@@ -131,16 +132,18 @@
     if (page !== 'products') $('#global-search-input').value = '';
   }
   async function renderPage(page) {
+    const renderId = ++state.renderSequence;
     state.page = page;
     setActivePage(page);
     closeSidebar();
     pageContent.innerHTML = '<div class="panel loading-state"><span class="loader"></span><strong>Loading your workspace…</strong></div>';
     try {
-      if (page === 'dashboard') await renderDashboard();
-      else if (page === 'products') await renderProducts(state.query);
-      else if (page === 'settings') await renderSettings();
-      else await renderDashboard();
+      if (page === 'dashboard') await renderDashboard(renderId);
+      else if (page === 'products') await renderProducts(state.query, renderId);
+      else if (page === 'settings') await renderSettings(renderId);
+      else await renderDashboard(renderId);
     } catch (error) {
+      if (renderId !== state.renderSequence) return;
       pageContent.innerHTML = '<div class="panel empty-state"><div class="empty-state-icon">!</div><strong>We could not load this page</strong><p>' + escapeHtml(error.message) + '</p><button class="btn-secondary" data-action="retry-page">Try again</button></div>';
     }
   }
@@ -159,8 +162,9 @@
       items.map((p) => '<tr><td><strong class="product-name">' + escapeHtml(p.name) + '</strong></td><td><span class="sku">' + escapeHtml(p.sku) + '</span></td><td><span class="quantity-low">' + number(p.quantity_on_hand) + '</span></td><td>' + number(p.effective_low_stock_threshold) + '</td></tr>').join('') +
       '</tbody></table></div>';
   }
-  async function renderDashboard() {
+  async function renderDashboard(renderId) {
     const data = await api('/api/dashboard');
+    if (renderId !== state.renderSequence) return;
     state.products = data.recent_products || [];
     const low = data.low_stock_items || [];
     pageContent.innerHTML = sectionHead('OVERVIEW', 'Your inventory, at a glance', 'A clear view of what is on your shelves and what needs attention.',
@@ -177,8 +181,9 @@
       '</aside></div><section class="panel catalog-preview"><div class="panel-heading"><div><span class="eyebrow">RECENTLY UPDATED</span><h2>Recent products</h2></div><button class="text-button" data-page="products">Open catalog →</button></div>' +
       (state.products.length ? '<div class="recent-list">' + state.products.slice(0, 5).map((p) => '<div class="recent-item"><div class="product-tile">' + escapeHtml(initials(p.name)) + '</div><div class="recent-info"><strong>' + escapeHtml(p.name) + '</strong><span>' + escapeHtml(p.sku) + '</span></div><div class="recent-qty"><strong>' + number(p.quantity_on_hand) + '</strong><span>units</span></div>' + stockBadge(p) + '</div>').join('') + '</div>' : '<div class="empty-inline"><span class="empty-circle">＋</span><div><strong>Your catalog starts here</strong><p>Add your first product to bring this dashboard to life.</p></div></div>') + '</section>';
   }
-  async function renderProducts(query = '') {
+  async function renderProducts(query = '', renderId) {
     const data = await api('/api/products?q=' + encodeURIComponent(query || ''));
+    if (renderId !== state.renderSequence) return;
     state.products = data.items || [];
     let products = state.products;
     if (state.filter === 'low') products = products.filter((item) => item.is_low_stock);
@@ -192,8 +197,9 @@
     $('#product-nav-count').textContent = number(data.count || 0);
     $('#product-nav-count').classList.toggle('hidden', !data.count);
   }
-  async function renderSettings() {
+  async function renderSettings(renderId) {
     const data = await api('/api/settings');
+    if (renderId !== state.renderSequence) return;
     pageContent.innerHTML = sectionHead('PREFERENCES', 'Settings', 'One simple default keeps low-stock alerts consistent across your workspace.') +
       '<div class="settings-layout"><section class="panel settings-card"><div class="panel-heading"><div><span class="eyebrow">INVENTORY RULES</span><h2>Low-stock threshold</h2><p>Used when an individual product has no custom threshold.</p></div></div>' +
       '<form id="settings-form"><div class="form-field"><label for="default-threshold">Default low-stock threshold</label><input class="form-control threshold-input" id="default-threshold" name="default_low_stock_threshold" type="number" min="0" max="2000000000" step="1" required value="' + Number(data.default_low_stock_threshold) + '"><small>Products at or below this quantity are marked low stock.</small></div><button type="submit" class="btn-primary">Save preferences</button></form></section>' +
@@ -317,7 +323,7 @@
       renderPage(target.dataset.page);
       return;
     }
-    if (target.dataset.filter) { state.filter = target.dataset.filter; renderProducts(state.query); return; }
+    if (target.dataset.filter) { state.filter = target.dataset.filter; await renderPage('products'); return; }
     const action = target.dataset.action;
     if (!action) return;
     if (action === 'new-product') { await openProductModal(); return; }
@@ -333,7 +339,7 @@
     if (action === 'confirm-delete') { await deleteProduct(target.dataset.id); return; }
     if (action === 'close-modal') { closeModal(); return; }
     if (action === 'backdrop-close' && event.target === target) { closeModal(); return; }
-    if (action === 'clear-search') { state.query = ''; $('#global-search-input').value = ''; await renderProducts(''); return; }
+    if (action === 'clear-search') { state.query = ''; $('#global-search-input').value = ''; await renderPage('products'); return; }
     if (action === 'retry-page') { await renderPage(state.page); return; }
   });
 
@@ -403,7 +409,7 @@
       try {
         await api('/api/settings', { method: 'PATCH', body: JSON.stringify({ default_low_stock_threshold: value }) });
         toast('Your default stock threshold has been updated.');
-        await renderSettings();
+        await renderPage('settings');
       } catch (error) { toast(error.message, 'error'); button.disabled = false; }
     }
   });
