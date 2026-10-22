@@ -65,19 +65,22 @@ async def add_security_headers(request: Request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-    response.headers.setdefault(
-        "Content-Security-Policy",
-        "default-src 'self'; "
-        "script-src 'self'; "
-        "style-src 'self' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data: https://images.unsplash.com; "
-        "connect-src 'self'; "
-        "form-action 'self'; "
-        "base-uri 'self'; "
-        "object-src 'none'; "
-        "frame-ancestors 'none'",
-    )
+    # FastAPI's Swagger UI uses inline initialization scripts and its own CDN assets.
+    # Keep the strict policy on the app and API while allowing the built-in docs to work.
+    if request.url.path != "/api/docs" and not request.url.path.startswith("/api/docs/"):
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: https://images.unsplash.com; "
+            "connect-src 'self'; "
+            "form-action 'self'; "
+            "base-uri 'self'; "
+            "object-src 'none'; "
+            "frame-ancestors 'none'",
+        )
     if request.url.path.startswith("/api/"):
         response.headers.setdefault("Cache-Control", "no-store")
     return response
