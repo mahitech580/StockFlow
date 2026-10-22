@@ -18,6 +18,7 @@
   const appShell = $('#app-shell');
   const modalRoot = $('#modal-root');
   const THEME_KEY = 'stockflow_theme';
+  const API_BASE_URL = String(document.querySelector('meta[name="stockflow-api-base-url"]')?.content || '').trim().replace(/\\/+$/, '');
   let modalTrigger = null;
 
   function applyTheme(theme, persist = false) {
@@ -60,14 +61,17 @@
     return (parts.length > 1 ? parts[0][0] + parts[1][0] : (parts[0] || 'S').slice(0, 2)).toUpperCase();
   }
   async function api(path, options = {}) {
-    if (window.location.hostname.toLowerCase().endsWith('.github.io') && path.startsWith('/api/')) {
-      throw new Error('This GitHub Pages preview hosts only the interface. Login requires the StockFlow FastAPI backend. Open the deployed StockFlow app URL or run the app locally at http://127.0.0.1:8000.');
+    const isApiRequest = path.startsWith('/api/');
+    const isGitHubPages = window.location.hostname.toLowerCase().endsWith('.github.io');
+    if (isApiRequest && isGitHubPages && !API_BASE_URL) {
+      throw new Error('StockFlow sign-in is not connected to its backend on this preview. Configure the stockflow-api-base-url setting with your deployed FastAPI URL, or open StockFlow from its backend deployment.');
     }
+    const requestUrl = API_BASE_URL && isApiRequest ? API_BASE_URL + path : path;
     const headers = new Headers(options.headers || {});
     if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
     if (state.token) headers.set('Authorization', 'Bearer ' + state.token);
     let response;
-    try { response = await fetch(path, { ...options, headers }); }
+    try { response = await fetch(requestUrl, { ...options, headers }); }
     catch (_) { throw new Error('Unable to reach StockFlow. Check the server and try again.'); }
     if (response.status === 204) return null;
     const data = await response.json().catch(() => ({}));
