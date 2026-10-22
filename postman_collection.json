@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "StockFlow MVP API",
-    "description": "Phase 1 inventory MVP. Set baseUrl, then run Signup or Login to save the token.",
+    "description": "Set baseUrl first. Run Sign up to create a fresh test account and save the token; then use the authenticated requests. To log in to an existing account, set the email collection variable to that account's email.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -19,7 +19,7 @@
     },
     {
       "key": "email",
-      "value": ""
+      "value": "owner@example.com"
     }
   ],
   "item": [
