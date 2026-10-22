@@ -14,6 +14,8 @@ async function call(path, options = {}) {
   const body = options.body;
   const expected = options.expected === undefined ? 200 : options.expected;
   const headers = new Headers();
+  const apiKey = process.env.STOCKFLOW_API_KEY || "";
+  if (apiKey) headers.set("apikey", apiKey);
   if (body !== undefined) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", "Bearer " + token);
   const response = await fetch(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
