@@ -328,6 +328,8 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert 'data-theme="dark"' in css
     js = client.get("/script.js").text
     assert "function applyTheme(theme, persist = false)" in js
+    assert "window.location.hostname.toLowerCase().endsWith('.github.io')" in js
+    assert "Login requires the StockFlow FastAPI backend" in js
     assert "stockflow_theme" in js
     assert "function renderAuth(mode, error = '', values = {})" in js
     assert "escapeHtml(values.organization_name || '')" in js
