@@ -18,6 +18,7 @@
   const appShell = $('#app-shell');
   const modalRoot = $('#modal-root');
   const THEME_KEY = 'stockflow_theme';
+  let modalTrigger = null;
 
   function applyTheme(theme, persist = false) {
     const activeTheme = theme === 'dark' ? 'dark' : 'light';
@@ -206,6 +207,7 @@
       '<aside class="panel settings-note"><div class="note-mark">i</div><h3>How the threshold works</h3><p>A product-specific threshold overrides this default. When its threshold is blank, StockFlow uses the value saved here.</p><div class="threshold-example"><div><span>Default threshold</span><strong>' + number(data.default_low_stock_threshold) + ' units</strong></div><div><span>Example product quantity</span><strong>3 units</strong></div></div></aside></div>';
   }
   function openModal(markup) {
+    modalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     modalRoot.innerHTML = markup;
     document.body.classList.add('modal-open');
     const first = modalRoot.querySelector('input,button,textarea');
@@ -215,6 +217,9 @@
     modalRoot.innerHTML = '';
     document.body.classList.remove('modal-open');
     state.modalBusy = false;
+    const trigger = modalTrigger;
+    modalTrigger = null;
+    if (trigger && trigger.isConnected && typeof trigger.focus === 'function') trigger.focus();
   }
   function productFormValues(form) {
     const values = new FormData(form);
@@ -431,7 +436,21 @@
     toast('You have been signed out safely.');
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') { closeModal(); closeSidebar(); }
+    if (event.key === 'Escape') { closeModal(); closeSidebar(); return; }
+    if (event.key !== 'Tab' || !modalRoot.querySelector('[role="dialog"]')) return;
+    const focusable = [...modalRoot.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )].filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true');
+    if (!focusable.length) { event.preventDefault(); return; }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && (document.activeElement === first || !modalRoot.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !modalRoot.contains(document.activeElement))) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 
   function openSidebar() { $('#sidebar').classList.add('sidebar-open'); $('#sidebar-scrim').classList.remove('hidden'); }
