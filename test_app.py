@@ -138,15 +138,26 @@ def test_products_can_share_sku_across_organizations_but_not_within_one(client):
 
 
 def test_tenant_isolation_for_listing_detail_update_and_delete(client):
-    token_a, _ = signup(client, "tenant-a@example.com", "Tenant A")
-    token_b, _ = signup(client, "tenant-b@example.com", "Tenant B")
+    token_a, user_a = signup(client, "tenant-a@example.com", "Tenant A")
+    token_b, user_b = signup(client, "tenant-b@example.com", "Tenant B")
     item = make_product(client, token_a)
+    assert user_a["organization_id"] != user_b["organization_id"]
     assert client.get("/api/products", headers=auth(token_b)).json()["count"] == 0
     path = "/api/products/" + str(item["id"])
     assert client.get(path, headers=auth(token_b)).status_code == 404
     assert client.patch(path, headers=auth(token_b), json={"quantity_on_hand": 999}).status_code == 404
     assert client.delete(path, headers=auth(token_b)).status_code == 404
     assert client.get(path, headers=auth(token_a)).json()["item"]["quantity_on_hand"] == 3
+
+    spoof_create = client.post("/api/products", headers=auth(token_b), json={
+        "name": "Spoofed tenant product", "sku": "SPOOF-1", "quantity_on_hand": 1,
+        "organization_id": user_a["organization_id"], "last_updated_by": user_a["id"],
+    })
+    assert spoof_create.status_code == 422
+    spoof_update = client.patch(path, headers=auth(token_a), json={
+        "organization_id": user_b["organization_id"], "last_updated_by": user_b["id"],
+    })
+    assert spoof_update.status_code == 422
 
 
 def test_search_matches_name_and_sku_case_insensitively(client):
