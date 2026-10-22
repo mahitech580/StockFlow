@@ -458,3 +458,26 @@ def test_database_initialization_creates_required_tables(tmp_path, monkeypatch):
     assert {"organizations", "organization_settings", "users", "products"} <= table_names
     assert database_file.exists()
     startup_engine.dispose()
+
+
+def test_production_rejects_wildcard_cors_origins():
+    import os
+    import subprocess
+    import sys
+
+    environment = os.environ.copy()
+    environment.update({
+        "APP_ENV": "production",
+        "SECRET_KEY": "production-cors-test-secret-with-more-than-thirty-two-characters",
+        "DATABASE_URL": "postgresql+psycopg://test:test@127.0.0.1:5432/stockflow",
+        "CORS_ORIGINS": "*",
+    })
+    result = subprocess.run(
+        [sys.executable, "-c", "import app"],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode != 0
+    assert "Production CORS_ORIGINS must list explicit origins" in result.stderr
