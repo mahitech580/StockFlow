@@ -531,7 +531,6 @@
   });
   $('#theme-toggle').addEventListener('click', toggleTheme);
   $('#auth-theme-toggle').addEventListener('click', toggleTheme);
-  if ($('#marketing-theme-toggle')) $('#marketing-theme-toggle').addEventListener('click', toggleTheme);
   $('#mobile-menu-button').addEventListener('click', () => {
     if ($('#sidebar').classList.contains('sidebar-open')) closeSidebar();
     else openSidebar();
