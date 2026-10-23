@@ -34,8 +34,8 @@ if (renderBase) {
   const policy = renderPage.headers.get("content-security-policy") || "";
   check(policy.includes("https://citireafvqtqkuxvmail.supabase.co"), "Render CSP does not permit the configured Supabase API origin");
   check(policy.includes("images.unsplash.com"), "Render CSP does not permit the workspace background images");
-  const cssPath = renderHtml.match(/href="(style\\.css\\?v=[^"]+)"/)?.[1];
-  const jsPath = renderHtml.match(/src="(script\\.js\\?v=[^"]+)"/)?.[1];
+  const cssPath = renderHtml.match(/href="(style\.css\?v=[^"]+)"/)?.[1];
+  const jsPath = renderHtml.match(/src="(script\.js\?v=[^"]+)"/)?.[1];
   check(Boolean(cssPath && jsPath), "Render HTML is missing versioned CSS/JavaScript assets");
   const renderCssResponse = await fetch(renderBase + "/" + cssPath, { signal: AbortSignal.timeout(45000) });
   const renderCss = await renderCssResponse.text();
@@ -43,7 +43,7 @@ if (renderBase) {
   for (const selector of [".section-head-dashboard::before", ".section-head-products::before", ".section-head-settings::before"]) {
     check(renderCss.includes(selector), "Render stylesheet is missing " + selector);
   }
-  check((renderCss.match(/https:\\/\\/images\\.unsplash\\.com\\//g) || []).length >= 3, "Render stylesheet is missing the three background images");
+  check(renderCss.includes("photo-1586528116311-ad8dd3c8310d") && renderCss.includes("photo-1553413077-190dd305871c") && renderCss.includes("photo-1497366754035-f200968a6e72"), "Render stylesheet is missing one of the three background images");
   const renderJsResponse = await fetch(renderBase + "/" + jsPath, { signal: AbortSignal.timeout(45000) });
   const renderJs = await renderJsResponse.text();
   check(renderJsResponse.ok, "Render JavaScript returned HTTP " + renderJsResponse.status);
