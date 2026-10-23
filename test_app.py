@@ -319,7 +319,7 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert 'id="auth-view" class="auth-view hidden"' in html
     assert 'data-action="demo-access"' in html
     assert 'href="style.css?v=20261023-workspace-v3"' in html
-    assert 'src="script.js?v=20261023-workspace-v3" defer' in html
+    assert 'src="script.js?v=20261023-workspace-v4" defer' in html
     assert 'id="theme-toggle"' in html
     assert 'id="auth-theme-toggle"' in html
     assert 'id="mobile-menu-button"' in html
@@ -390,7 +390,7 @@ def test_workspace_section_artwork_and_button_wiring(client):
     html = client.get('/').text
     assert 'href="#dashboard" data-page="dashboard"' in html
     assert 'style.css?v=20261023-workspace-v3' in html
-    assert 'script.js?v=20261023-workspace-v3' in html
+    assert 'script.js?v=20261023-workspace-v4' in html
 
     css = client.get('/style.css').text
     assert '.section-head-dashboard::before' in css
