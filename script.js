@@ -440,10 +440,7 @@
         showApp(data.user);
         toast('Welcome back to your workspace.');
       } catch (error) {
-        if ([401, 409, 422].includes(error.status)) {
-          try { await openDemoWorkspace(); return; }
-          catch (demoError) { renderAuth('login', demoError.message, { email: String(values.get('email') || '').trim() }); return; }
-        }
+        // Failed credentials must never silently switch the user into a demo account.
         renderAuth('login', error.message, { email: String(values.get('email') || '').trim() });
       }
     }
@@ -455,8 +452,14 @@
         organization_name: String(values.get('organization_name') || '').trim(),
         email: String(values.get('email') || '').trim()
       };
-      if (password !== String(values.get('confirm_password') || '')) { try { await openDemoWorkspace(); } catch (error) { renderAuth('signup', error.message, authValues); } return; }
-      if (password.length < 8) { try { await openDemoWorkspace(); } catch (error) { renderAuth('signup', error.message, authValues); } return; }
+      if (password !== String(values.get('confirm_password') || '')) {
+        renderAuth('signup', 'Passwords do not match.', authValues);
+        return;
+      }
+      if (password.length < 8) {
+        renderAuth('signup', 'Password must be at least 8 characters.', authValues);
+        return;
+      }
       try {
         const data = await api('/api/auth/signup', { method: 'POST', body: JSON.stringify({
           organization_name: authValues.organization_name,
@@ -467,10 +470,7 @@
         showApp(data.user);
         toast('Your workspace is ready. Add your first product to begin.');
       } catch (error) {
-        if ([409, 422].includes(error.status)) {
-          try { await openDemoWorkspace(); return; }
-          catch (demoError) { renderAuth('signup', demoError.message, authValues); return; }
-        }
+        // Validation and duplicate-account errors should be visible, not redirected to demo mode.
         renderAuth('signup', error.message, authValues);
       }
     }
