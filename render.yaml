@@ -11,8 +11,10 @@ services:
     envVars:
       - key: APP_ENV
         value: production
-      - key: DATABASE_URL
-        sync: false
+      - key: STOCKFLOW_API_MODE
+        value: supabase
+      - key: SUPABASE_API_ORIGIN
+        value: https://citireafvqtqkuxvmail.supabase.co
       - key: SECRET_KEY
         generateValue: true
       - key: TOKEN_TTL_HOURS
