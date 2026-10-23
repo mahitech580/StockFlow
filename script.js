@@ -213,7 +213,8 @@
     }
   }
   function sectionHead(kicker, title, copy, action) {
-    return '<div class="section-head"><div><span class="eyebrow">' + kicker + '</span><h1>' + title + '</h1><p>' + copy + '</p></div>' + (action || '') + '</div>';
+    const view = ['dashboard', 'products', 'settings'].includes(state.page) ? state.page : 'dashboard';
+    return '<div class="section-head section-head-' + view + '" data-workspace-section="' + view + '"><div><span class="eyebrow">' + kicker + '</span><h1>' + title + '</h1><p>' + copy + '</p></div>' + (action || '') + '</div>';
   }
   function statCard(label, value, note, symbol, tone) {
     return '<article class="stat-card"><div class="stat-top"><span>' + label + '</span><span class="stat-icon ' + tone + '">' + symbol + '</span></div><strong class="stat-value">' + value + '</strong><span class="stat-note">' + note + '</span></article>';
@@ -350,7 +351,7 @@
       errorBox.textContent = error.message;
       errorBox.classList.remove('hidden');
       button.disabled = false;
-      button.textContent = 'Save changes';
+      button.textContent = form.dataset.productId ? 'Save changes' : 'Create product';
       state.modalBusy = false;
     }
   }
@@ -368,8 +369,14 @@
       for (const item of samples) { await api('/api/products', { method: 'POST', body: JSON.stringify(item) }); created += 1; }
       toast(created + ' sample products added.');
       await renderPage(state.page);
-    } catch (error) { toast(created + ' sample products added. ' + error.message, 'error'); }
-    finally { state.modalBusy = false; if (triggerButton.isConnected) triggerButton.disabled = false; }
+    } catch (error) {
+      toast(created + ' sample products added before the issue. ' + error.message, 'error');
+    } finally {
+      state.modalBusy = false;
+      if (triggerButton.isConnected) triggerButton.disabled = false;
+    }
+    // Refresh after partial failure too, so the dashboard never shows stale totals.
+    if (created > 0) await renderPage(state.page);
   }
   async function deleteProduct(id) {
     try {
@@ -398,6 +405,7 @@
     if (target.id === 'marketing-theme-toggle') { toggleTheme(); return; }
     if (target.dataset.authMode) { showAuth(target.dataset.authMode); return; }
     if (target.dataset.page) {
+      if (target.tagName === 'A') event.preventDefault();
       window.clearTimeout(state.searchTimer);
       state.filter = 'all';
       state.query = '';
