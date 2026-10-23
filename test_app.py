@@ -386,6 +386,25 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert "key.toLowerCase() === 'k'" not in js
 
 
+def test_supabase_edge_function_source_matches_auth_contract():
+    from pathlib import Path
+
+    source_path = Path(__file__).parent / "supabase" / "functions" / "stockflow-api" / "index.ts"
+    assert source_path.is_file(), "The deployed Supabase Edge Function must be checked into the repository"
+    source = source_path.read_text(encoding="utf-8")
+
+    # Signup must compensate for partial failures rather than leaving orphan accounts.
+    assert "async function rollbackSignup(userId: string, organizationId?: string)" in source
+    assert "await rollbackSignup(created.user.id);" in source
+    assert "await rollbackSignup(created.user.id, org.id);" in source
+    assert "async function openDemoSession" in source
+
+    # Keep the public API's authentication and demo response contracts in source control.
+    assert 'fail(401,"Email or password is incorrect")' in source
+    assert "is_demo: true" in source
+    assert "organization_id:u.organization_id" in source
+
+
 def test_tampered_and_expired_tokens_are_rejected(client, monkeypatch):
     import time
     import auth
