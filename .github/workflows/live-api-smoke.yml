@@ -7,6 +7,7 @@ on:
       - ".github/workflows/live-api-smoke.yml"
       - "scripts/live_smoke_test.mjs"
       - "index.html"
+      - "supabase/functions/stockflow-api/index.ts"
   workflow_dispatch:
 
 permissions:
