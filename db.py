@@ -13,15 +13,25 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env", override=False)
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+STOCKFLOW_API_MODE = os.getenv("STOCKFLOW_API_MODE", "fastapi").strip().lower()
+if STOCKFLOW_API_MODE not in {"fastapi", "supabase"}:
+    raise RuntimeError("STOCKFLOW_API_MODE must be either 'fastapi' or 'supabase'.")
 
 
 def configured_database_url() -> str:
     """Return normalized URL; production must use a durable external database."""
     raw_url = os.getenv("DATABASE_URL", "").strip()
-    if APP_ENV in {"production", "prod"}:
+
+    # In this explicit mode FastAPI only serves the UI; the UI's authenticated
+    # API is handled by the configured Supabase Edge Function. Keep an in-memory
+    # URL only so SQLAlchemy models can be imported; the local API and DB startup
+    # are disabled by app.py, so this database is never used for user data.
+    if STOCKFLOW_API_MODE == "supabase":
+        raw_url = "sqlite:///:memory:"
+    elif APP_ENV in {"production", "prod"}:
         if not raw_url:
             raise RuntimeError(
-                "DATABASE_URL must be configured in production. "
+                "DATABASE_URL must be configured in production when STOCKFLOW_API_MODE=fastapi. "
                 "Use a durable external database; SQLite on an ephemeral host filesystem is not safe."
             )
         if raw_url.lower().startswith("sqlite:"):
