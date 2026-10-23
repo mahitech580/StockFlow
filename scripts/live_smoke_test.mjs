@@ -25,6 +25,21 @@ async function call(path, options = {}) {
   return { response, data };
 }
 
+const renderBase = (process.env.STOCKFLOW_RENDER_BASE_URL || "").replace(/\/+$/, "");
+if (renderBase) {
+  const renderPage = await fetch(renderBase + "/", { signal: AbortSignal.timeout(120000) });
+  const renderHtml = await renderPage.text();
+  check(renderPage.ok, "Render landing page returned HTTP " + renderPage.status);
+  check(renderHtml.includes("StockFlow"), "Render landing page did not contain the StockFlow UI");
+  const policy = renderPage.headers.get("content-security-policy") || "";
+  check(policy.includes("https://citireafvqtqkuxvmail.supabase.co"), "Render CSP does not permit the configured Supabase API origin");
+  const renderHealthResponse = await fetch(renderBase + "/api/health", { signal: AbortSignal.timeout(45000) });
+  const renderHealth = await renderHealthResponse.json().catch(() => ({}));
+  check(renderHealthResponse.status === 200, "Render health endpoint returned HTTP " + renderHealthResponse.status);
+  check(renderHealth.status === "ok" && renderHealth.api_mode === "supabase", "Render health endpoint reported an unexpected mode");
+  console.log("PASS: live Render page + Supabase CSP + health endpoint");
+}
+
 const health = await call("/api/health");
 check(health.data.status === "ok" && health.data.database === "ok", "Health endpoint did not report a healthy database");
 const preflight = await fetch(base + "/api/auth/login", {
