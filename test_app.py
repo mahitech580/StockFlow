@@ -318,8 +318,8 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert 'href="#faq"' in html
     assert 'id="auth-view" class="auth-view hidden"' in html
     assert 'data-action="demo-access"' in html
-    assert 'href="style.css?v=20261023-marketing-v2"' in html
-    assert 'src="script.js?v=20261023-marketing-v2" defer' in html
+    assert 'href="style.css?v=20261023-workspace-v3"' in html
+    assert 'src="script.js?v=20261023-workspace-v3" defer' in html
     assert 'id="theme-toggle"' in html
     assert 'id="auth-theme-toggle"' in html
     assert 'id="mobile-menu-button"' in html
@@ -385,6 +385,33 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert "await renderSettings(renderId)" in js
     assert "key.toLowerCase() === 'k'" not in js
 
+
+def test_workspace_section_artwork_and_button_wiring(client):
+    html = client.get('/').text
+    assert 'href="#dashboard" data-page="dashboard"' in html
+    assert 'style.css?v=20261023-workspace-v3' in html
+    assert 'script.js?v=20261023-workspace-v3' in html
+
+    css = client.get('/style.css').text
+    assert '.section-head-dashboard::before' in css
+    assert '.section-head-products::before' in css
+    assert '.section-head-settings::before' in css
+    assert css.count('https://images.unsplash.com/') >= 3
+    assert 'prefers-reduced-motion: reduce' in css
+
+    js = client.get('/script.js').text
+    assert "section-head-' + view" in js
+    assert "form.dataset.productId ? 'Save changes' : 'Create product'" in js
+    assert "if (target.tagName === 'A') event.preventDefault();" in js
+    actions = (
+        'backdrop-close', 'clear-search', 'close-modal', 'confirm-delete',
+        'delete-product', 'demo-access', 'edit-product', 'load-sample-data',
+        'new-product', 'retry-page', 'review-low-stock', 'stock-adjust',
+    )
+    for action in actions:
+        assert "action === '" + action + "'" in js, f'Missing click handler for {action}'
+    for form_id in ('login-form', 'signup-form', 'product-form', 'stock-adjust-form', 'settings-form'):
+        assert 'form.id === ' + repr(form_id) in js, f'Missing submit handler for {form_id}'
 
 def test_supabase_edge_function_source_matches_auth_contract():
     from pathlib import Path
