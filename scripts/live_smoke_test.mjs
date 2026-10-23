@@ -33,11 +33,27 @@ if (renderBase) {
   check(renderHtml.includes("StockFlow"), "Render landing page did not contain the StockFlow UI");
   const policy = renderPage.headers.get("content-security-policy") || "";
   check(policy.includes("https://citireafvqtqkuxvmail.supabase.co"), "Render CSP does not permit the configured Supabase API origin");
+  check(policy.includes("images.unsplash.com"), "Render CSP does not permit the workspace background images");
+  const cssPath = renderHtml.match(/href="(style\\.css\\?v=[^"]+)"/)?.[1];
+  const jsPath = renderHtml.match(/src="(script\\.js\\?v=[^"]+)"/)?.[1];
+  check(Boolean(cssPath && jsPath), "Render HTML is missing versioned CSS/JavaScript assets");
+  const renderCssResponse = await fetch(renderBase + "/" + cssPath, { signal: AbortSignal.timeout(45000) });
+  const renderCss = await renderCssResponse.text();
+  check(renderCssResponse.ok, "Render stylesheet returned HTTP " + renderCssResponse.status);
+  for (const selector of [".section-head-dashboard::before", ".section-head-products::before", ".section-head-settings::before"]) {
+    check(renderCss.includes(selector), "Render stylesheet is missing " + selector);
+  }
+  check((renderCss.match(/https:\\/\\/images\\.unsplash\\.com\\//g) || []).length >= 3, "Render stylesheet is missing the three background images");
+  const renderJsResponse = await fetch(renderBase + "/" + jsPath, { signal: AbortSignal.timeout(45000) });
+  const renderJs = await renderJsResponse.text();
+  check(renderJsResponse.ok, "Render JavaScript returned HTTP " + renderJsResponse.status);
+  check(renderJs.includes("Passwords do not match.") && renderJs.includes("Email or password is incorrect") === false, "Render JavaScript form validation bundle is unexpected");
+  check(renderJs.includes("form.dataset.productId ? 'Save changes' : 'Create product'"), "Render JavaScript has stale product submit handling");
   const renderHealthResponse = await fetch(renderBase + "/api/health", { signal: AbortSignal.timeout(45000) });
   const renderHealth = await renderHealthResponse.json().catch(() => ({}));
   check(renderHealthResponse.status === 200, "Render health endpoint returned HTTP " + renderHealthResponse.status);
   check(renderHealth.status === "ok" && renderHealth.api_mode === "supabase", "Render health endpoint reported an unexpected mode");
-  console.log("PASS: live Render page + Supabase CSP + health endpoint");
+  console.log("PASS: live Render page + versioned assets + section backgrounds + Supabase CSP + health endpoint");
 }
 
 const health = await call("/api/health");
@@ -55,15 +71,21 @@ check(preflight.headers.get("access-control-allow-origin") === "*", "CORS origin
 check((preflight.headers.get("access-control-allow-headers") || "").toLowerCase().includes("authorization"), "CORS authorization header not allowed");
 check((preflight.headers.get("access-control-allow-headers") || "").toLowerCase().includes("apikey"), "CORS API-key header not allowed");
 
-const a = await call("/api/auth/signup", { method:"POST", expected:201, body:{email:emailA,password,organization_name:"CI " + suffix} });
+const orgName = "CI " + suffix;
+const a = await call("/api/auth/signup", { method:"POST", expected:201, body:{email:emailA,password,organization_name:orgName} });
 const tokenA = a.data.access_token;
 check(typeof tokenA === "string" && tokenA.length > 20, "Signup did not return a session token");
 check(a.data.user.email === emailA, "Signup user email mismatch");
+check(a.data.user.organization_name === orgName && Boolean(a.data.user.organization_id), "Signup did not create and link an organization");
 const login = await call("/api/auth/login", {method:"POST",body:{email:emailA,password}});
 const tokenLogin = login.data.access_token;
 check(typeof tokenLogin === "string", "Login did not return an access token");
 const me = await call("/api/me", {token:tokenLogin});
-check(me.data.user.email === emailA, "Authenticated user identity mismatch");
+check(me.data.user.email === emailA && me.data.user.organization_id === a.data.user.organization_id, "Authenticated identity or organization link mismatch");
+const wrongPassword = await call("/api/auth/login", {method:"POST",expected:401,body:{email:emailA,password:"wrong-" + password}});
+check(wrongPassword.data.detail === "Email or password is incorrect", "Incorrect-password feedback changed unexpectedly");
+await call("/api/auth/signup", {method:"POST",expected:409,body:{email:emailA,password,organization_name:orgName}});
+await call("/api/auth/signup", {method:"POST",expected:422,body:{email:"short-pass-" + suffix + "@example.com",password:"123",organization_name:orgName}});
 
 const created = await call("/api/products", {
   method:"POST", token:tokenLogin, expected:201,
