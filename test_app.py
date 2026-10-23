@@ -500,6 +500,42 @@ def test_clearing_product_threshold_falls_back_to_workspace_default(client):
     assert updated["is_low_stock"] is True
 
 
+def test_production_supabase_mode_serves_ui_without_local_database():
+    import os
+    import subprocess
+    import sys
+
+    environment = os.environ.copy()
+    environment.update({
+        "APP_ENV": "production",
+        "STOCKFLOW_API_MODE": "supabase",
+        "SUPABASE_API_ORIGIN": "https://citireafvqtqkuxvmail.supabase.co",
+        "SECRET_KEY": "production-supabase-mode-test-secret-with-more-than-32-characters",
+    })
+    environment.pop("DATABASE_URL", None)
+    smoke_code = "\n".join([
+        "from fastapi.testclient import TestClient",
+        "from app import app",
+        "with TestClient(app) as client:",
+        "    home = client.get(\"/\")",
+        "    assert home.status_code == 200 and \"StockFlow\" in home.text",
+        "    policy = home.headers[\"content-security-policy\"]",
+        "    assert \"connect-src\" in policy and \"https://citireafvqtqkuxvmail.supabase.co\" in policy",
+        "    health = client.get(\"/api/health\")",
+        "    assert health.status_code == 200",
+        "    assert health.json() == {\"status\": \"ok\", \"service\": \"stockflow\", \"api_mode\": \"supabase\"}",
+        "    blocked = client.get(\"/api/dashboard\")",
+        "    assert blocked.status_code == 503",
+    ])
+    result = subprocess.run(
+        [sys.executable, "-c", smoke_code],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stderr
+
 def test_production_startup_requires_explicit_database_url():
     import os
     import subprocess
