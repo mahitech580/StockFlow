@@ -403,6 +403,9 @@ def test_workspace_section_artwork_and_button_wiring(client):
     assert "section-head-' + view" in js
     assert "form.dataset.productId ? 'Save changes' : 'Create product'" in js
     assert "if (target.tagName === 'A') event.preventDefault();" in js
+    assert "if (target.id === 'marketing-theme-toggle') { toggleTheme(); return; }" in js
+    assert "$('#marketing-theme-toggle').addEventListener('click', toggleTheme);" not in js
+    assert "$('#theme-toggle').addEventListener('click', toggleTheme);" in js
     actions = (
         'backdrop-close', 'clear-search', 'close-modal', 'confirm-delete',
         'delete-product', 'demo-access', 'edit-product', 'load-sample-data',
