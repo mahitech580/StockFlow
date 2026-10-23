@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -14,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from auth import create_access_token, get_current_user, hash_password, verify_password
-from db import BASE_DIR, Base, get_db, init_db
+from db import BASE_DIR, Base, STOCKFLOW_API_MODE, get_db, init_db
 from models import Organization, Product, User, utc_now
 from schemas import LoginIn, ProductCreate, ProductUpdate, SettingsUpdate, SignupIn, StockAdjustmentIn
 
@@ -23,10 +24,29 @@ CORS_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split
 if APP_ENV in {"production", "prod"} and "*" in CORS_ORIGINS:
     raise RuntimeError("Production CORS_ORIGINS must list explicit origins; wildcard CORS is not allowed.")
 
+SUPABASE_API_ORIGIN = os.getenv(
+    "SUPABASE_API_ORIGIN", "https://citireafvqtqkuxvmail.supabase.co"
+).strip().rstrip("/")
+if STOCKFLOW_API_MODE == "supabase":
+    parsed_origin = urlsplit(SUPABASE_API_ORIGIN)
+    if (
+        parsed_origin.scheme != "https"
+        or not parsed_origin.netloc
+        or parsed_origin.path
+        or parsed_origin.query
+        or parsed_origin.fragment
+        or parsed_origin.username
+        or parsed_origin.password
+    ):
+        raise RuntimeError("SUPABASE_API_ORIGIN must be an HTTPS origin without a path or credentials.")
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    init_db()
+    # Supabase mode serves the UI only; its authenticated API and persistent
+    # tenant data live in the Supabase Edge Function/Postgres project.
+    if STOCKFLOW_API_MODE == "fastapi":
+        init_db()
     yield
 
 
@@ -60,7 +80,21 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
+    # Do not accidentally serve a second, empty inventory backend when deployed
+    # in Supabase mode. The frontend uses its explicit Supabase API URL instead.
+    if STOCKFLOW_API_MODE == "supabase" and request.url.path.startswith("/api/"):
+        if request.method == "GET" and request.url.path == "/api/health":
+            response = JSONResponse(
+                status_code=200,
+                content={"status": "ok", "service": "stockflow", "api_mode": "supabase"},
+            )
+        else:
+            response = JSONResponse(
+                status_code=503,
+                content={"detail": "This deployment uses the configured Supabase Edge Function for the API."},
+            )
+    else:
+        response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -75,7 +109,9 @@ async def add_security_headers(request: Request, call_next):
             "style-src 'self' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https://images.unsplash.com; "
-            "connect-src 'self'; "
+            "connect-src 'self'"
+            + (f" {SUPABASE_API_ORIGIN}" if STOCKFLOW_API_MODE == "supabase" else "")
+            + "; "
             "form-action 'self'; "
             "base-uri 'self'; "
             "object-src 'none'; "
