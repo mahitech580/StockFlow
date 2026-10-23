@@ -61,14 +61,10 @@ Python, FastAPI, SQLAlchemy, Pydantic, HTML, CSS, vanilla JavaScript, SQLite/MyS
 
 ## Deployment
 
-StockFlow is a **FastAPI web service**, not a static-only website. Deploy it as a Python web service so the UI and `/api/*` routes run on the same origin. GitHub Pages can publish static files but cannot run the FastAPI API.
+The current Render configuration uses `STOCKFLOW_API_MODE=supabase`: Render serves the StockFlow HTML/CSS/JavaScript, while sign-up, login, demo sessions, products, dashboard, and settings use the configured Supabase Edge Function and its persistent Postgres database. This mode deliberately does **not** require a second Render database; it does not use the in-memory SQLite engine for customer data. `/api/health` verifies that the UI host is up, and other local `/api/*` routes return `503` so the application cannot silently use an empty local database.
 
-The committed `render.yaml` configures a Render web service and prompts for `DATABASE_URL` at initial Blueprint creation. Provide a PostgreSQL connection string for a **separate StockFlow database**. Do not point this app at another project's database and never commit credentials.
+`render.yaml` sets the Supabase API origin and mode. The publishable Supabase key in `index.html` is intended for browser use; never place a Supabase service-role key or database password in the HTML, JavaScript, or GitHub. The Edge Function keeps its service key server-side and scopes every product/settings operation to the authenticated user's organization.
 
-Render's free PostgreSQL plan has a 1 GB limit, is limited to one active free database per workspace, and expires after 30 days. If your workspace already uses its free database, use a separate external Postgres provider or choose a paid database plan only after reviewing the cost. The app's free web service can also spin down when idle; first requests may take longer.
+The alternate standalone FastAPI backend remains available by setting `STOCKFLOW_API_MODE=fastapi`. In that mode, production must have a strong unique `SECRET_KEY` and a durable external `DATABASE_URL` (Postgres or MySQL); SQLite on Render's ephemeral filesystem is rejected intentionally. Do not connect StockFlow to the unrelated ORBIT database. The free Render web service can spin down while inactive, so the first visit after idle may take longer.
 
-After deployment:
-1. Confirm the service deploy reaches the `live` state.
-2. Check `https://YOUR-SERVICE.onrender.com/api/health`.
-3. Sign up with a new test email, add a product, and verify the dashboard totals and low-stock behavior.
-4. Restart or redeploy only after confirming your database is external and durable, not a local SQLite file on an ephemeral filesystem.
+After deployment, verify the Render service is `Live`, check `/api/health`, and then test new signup, login with the same credentials, wrong-password feedback, product create/edit/search/delete, dashboard totals, low-stock thresholds, demo isolation, and a second organization's data isolation. The live API smoke workflow exercises the Supabase API with throwaway accounts and products.
