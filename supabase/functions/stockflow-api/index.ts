@@ -26,7 +26,7 @@ async function userOf(req: Request) {
   const { data: org, error: oe } = await db.from("organizations").select("id,name").eq("id", profile.organization_id).maybeSingle();
   if (oe || !org) fail(401, "Workspace not found");
   const { data: settings } = await db.from("organization_settings").select("default_low_stock_threshold").eq("organization_id", org.id).maybeSingle();
-  return { id: data.user.id, email: profile.email, organization_id: org.id, organization_name: org.name, default_low_stock_threshold: settings?.default_low_stock_threshold ?? 5 };
+  return { id: data.user.id, email: profile.email, organization_id: org.id, organization_name: org.name, default_low_stock_threshold: settings?.default_low_stock_threshold ?? 5, is_demo: profile.email.startsWith('stockflow-demo-') };
 }
 function product(row: any, u: any) { const threshold = row.low_stock_threshold ?? u.default_low_stock_threshold; return { ...row, effective_low_stock_threshold: threshold, is_low_stock: row.quantity_on_hand <= threshold }; }
 async function rows(u: any) {
@@ -51,9 +51,95 @@ function productInput(b: any, partial = false) {
   if ("low_stock_threshold" in b) { const v = b.low_stock_threshold; if (v === null) out.low_stock_threshold = null; else if (!int(v) || v < 0 || v > 2000000000) fail(422, "Threshold must be a non-negative whole number"); else out.low_stock_threshold = v; } else if (!partial) out.low_stock_threshold = null;
   return out;
 }
+async function demoPassword(sessionId: string) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sessionId + ":" + serviceKey));
+  const hex = Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
+  return "Sf!" + hex.slice(0, 52) + "x9";
+}
+async function openDemoSession(sessionIdRaw: unknown) {
+  const sessionId = str(sessionIdRaw).toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(sessionId)) {
+    fail(422, "Refresh the page and try demo access again");
+  }
+  const email = "stockflow-demo-" + sessionId.replaceAll("-", "") + "@example.com";
+  const password = await demoPassword(sessionId);
+  const { data: existing, error: lookupError } = await db.from("stockflow_demo_sessions")
+    .select("user_id,organization_id").eq("demo_session_id", sessionId).maybeSingle();
+  if (lookupError) fail(500, "Could not load your demo workspace");
+  let userId = existing?.user_id as string | undefined;
+  let organizationId = existing?.organization_id as string | undefined;
+  if (!existing) {
+    const { data: created, error: createError } = await db.auth.admin.createUser({ email, password, email_confirm: true });
+    if (createError || !created.user) fail(500, "Could not create your isolated demo session. Please retry.");
+    userId = created.user.id;
+    try {
+      const { data: org, error: orgError } = await db.from("organizations")
+        .insert({ name: "StockFlow Demo " + sessionId.slice(0, 6).toUpperCase() }).select("id,name").single();
+      if (orgError || !org) throw new Error("organization creation failed");
+      organizationId = org.id;
+      const { error: settingsError } = await db.from("organization_settings")
+        .insert({ organization_id: organizationId, default_low_stock_threshold: 5 });
+      if (settingsError) throw new Error("settings creation failed");
+      const { error: profileError } = await db.from("stockflow_profiles")
+        .insert({ user_id: userId, organization_id: organizationId, email });
+      if (profileError) throw new Error("profile creation failed");
+      const { error: mappingError } = await db.from("stockflow_demo_sessions")
+        .insert({ demo_session_id: sessionId, user_id: userId, organization_id: organizationId });
+      if (mappingError) throw new Error("demo session mapping failed");
+    } catch (_) {
+      if (organizationId) await db.from("organizations").delete().eq("id", organizationId);
+      await db.auth.admin.deleteUser(userId);
+      fail(500, "Could not initialize your demo workspace. Please retry.");
+    }
+  }
+  const { data: session, error: loginError } = await authClient.auth.signInWithPassword({ email, password });
+  if (loginError || !session.session || !session.user) fail(500, "Could not open your demo session. Please retry.");
+  const { data: organization } = await db.from("organizations").select("id,name").eq("id", organizationId).single();
+  return {
+    access_token: session.session.access_token,
+    token_type: "bearer",
+    user: {
+      id: userId,
+      email,
+      organization_id: organizationId,
+      organization_name: organization?.name ?? "StockFlow Demo",
+      is_demo: true,
+    },
+  };
+}
+
+async function rollbackSignup(userId: string, organizationId?: string) {
+  let cleanupFailed = false;
+  if (organizationId) {
+    try {
+      const { error } = await db.from("stockflow_profiles").delete().eq("user_id", userId);
+      if (error) cleanupFailed = true;
+    } catch (_) { cleanupFailed = true; }
+    try {
+      const { error } = await db.from("organization_settings").delete().eq("organization_id", organizationId);
+      if (error) cleanupFailed = true;
+    } catch (_) { cleanupFailed = true; }
+    try {
+      const { error } = await db.from("organizations").delete().eq("id", organizationId);
+      if (error) cleanupFailed = true;
+    } catch (_) { cleanupFailed = true; }
+  }
+  try {
+    const { error } = await db.auth.admin.deleteUser(userId);
+    if (error) cleanupFailed = true;
+  } catch (_) { cleanupFailed = true; }
+  if (cleanupFailed) {
+    console.error("StockFlow signup rollback was incomplete; manual cleanup may be required.");
+  }
+}
+
 async function handle(req: Request) {
   if (req.method === "OPTIONS") return new Response(null, {status:204,headers:cors});
   const urlObj = new URL(req.url); const path = pathOf(urlObj); const method = req.method.toUpperCase();
+  if (method === "POST" && path === "/api/auth/demo") {
+    const b = await body(req);
+    return json(await openDemoSession(b.session_id), 201);
+  }
   if (method === "GET" && path === "/api/health") {
     const { error } = await db.from("organizations").select("id").limit(1);
     if (error) fail(503, "Database connection is unavailable");
@@ -67,13 +153,25 @@ async function handle(req: Request) {
     const { data: created, error: createError } = await db.auth.admin.createUser({ email, password, email_confirm: true });
     if (createError || !created.user) { if (/already|registered|exists/i.test(createError?.message || "")) fail(409, "An account with this email already exists"); fail(400, "Could not create your account. Please check the details."); }
     const { data: org, error: orgError } = await db.from("organizations").insert({name}).select("id,name").single();
-    if (orgError || !org) fail(500, "Account created but workspace could not be initialized");
+    if (orgError || !org) {
+      await rollbackSignup(created.user.id);
+      fail(500, "Could not initialize your workspace. Please try registering again.");
+    }
     const { error: settingsError } = await db.from("organization_settings").insert({organization_id:org.id,default_low_stock_threshold:5});
-    if (settingsError) { await db.from("organizations").delete().eq("id",org.id); fail(500, "Could not initialize workspace settings"); }
+    if (settingsError) {
+      await rollbackSignup(created.user.id, org.id);
+      fail(500, "Could not initialize workspace settings. Please try registering again.");
+    }
     const { error: profileError } = await db.from("stockflow_profiles").insert({user_id:created.user.id,organization_id:org.id,email});
-    if (profileError) { await db.from("organizations").delete().eq("id",org.id); fail(500, "Could not create workspace profile"); }
+    if (profileError) {
+      await rollbackSignup(created.user.id, org.id);
+      fail(500, "Could not create your workspace profile. Please try registering again.");
+    }
     const { data: session, error: signInError } = await authClient.auth.signInWithPassword({email,password});
-    if (signInError || !session.session) fail(500, "Workspace created but sign-in could not be started; please sign in.");
+    if (signInError || !session.session) {
+      await rollbackSignup(created.user.id, org.id);
+      fail(500, "Could not start your session. Please try registering again.");
+    }
     return json({access_token:session.session.access_token,token_type:"bearer",user:{id:created.user.id,email,organization_id:org.id,organization_name:org.name}},201);
   }
   if (method === "POST" && path === "/api/auth/login") {
@@ -84,7 +182,7 @@ async function handle(req: Request) {
     const u=await userOf(new Request(req.url,{headers:{authorization:"Bearer "+data.session.access_token}}));
     return json({access_token:data.session.access_token,token_type:"bearer",user:{id:u.id,email:u.email,organization_id:u.organization_id,organization_name:u.organization_name}});
   }
-  if (method === "GET" && path === "/api/me") { const u=await userOf(req); return json({user:{id:u.id,email:u.email,organization_id:u.organization_id,organization_name:u.organization_name}}); }
+  if (method === "GET" && path === "/api/me") { const u=await userOf(req); return json({user:{id:u.id,email:u.email,organization_id:u.organization_id,organization_name:u.organization_name,is_demo:u.is_demo}}); }
   if (method === "GET" && path === "/api/dashboard") {
     const u=await userOf(req); const all=(await rows(u)).map(r=>product(r,u)); const low=all.filter(r=>r.is_low_stock).sort((a,b)=>a.quantity_on_hand-b.quantity_on_hand||a.name.localeCompare(b.name));
     return json({total_products:all.length,total_units:all.reduce((s,r)=>s+r.quantity_on_hand,0),low_stock_count:low.length,default_low_stock_threshold:u.default_low_stock_threshold,low_stock_items:low.slice(0,8),recent_products:all.slice(0,6)});
