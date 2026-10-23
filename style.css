@@ -256,3 +256,97 @@ html.motion-ready .reveal:not(.is-visible){opacity:0;transform:translateY(18px)}
   .marketing-footer-top{gap:14px;padding-top:25px;padding-bottom:20px}.marketing-footer-top>p{width:100%}.marketing-footer nav{gap:15px}.marketing-footer-bottom{flex-wrap:wrap;gap:9px;padding-top:14px;padding-bottom:16px;font-size:8px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.hero-scroll-cue span:after{animation:none}.preview-window,.scene-card{transform:none!important}}
+
+
+/* Workspace section artwork — separate, low-noise imagery for each MVP screen. */
+.section-head {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 188px;
+  padding: 28px clamp(20px, 3vw, 34px);
+  margin-bottom: 24px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 22px;
+  background: #142a40;
+  box-shadow: 0 16px 38px rgba(18,35,55,.14);
+}
+.section-head::before,
+.section-head::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.section-head::before {
+  z-index: -2;
+  background-size: cover;
+  background-position: center 48%;
+  transform: scale(1.015);
+  transition: transform .65s ease;
+}
+.section-head:hover::before {
+  transform: scale(1.045);
+}
+.section-head::after {
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(8,21,36,.92) 0%, rgba(8,24,40,.78) 45%, rgba(8,24,40,.30) 100%),
+              linear-gradient(0deg, rgba(8,20,34,.26), transparent 68%);
+}
+.section-head-dashboard::before {
+  background-image: url("https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1800&q=85");
+}
+.section-head-products::before {
+  background-image: url("https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1800&q=85");
+  background-position: center 53%;
+}
+.section-head-settings::before {
+  background-image: url("https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1800&q=85");
+  background-position: center 57%;
+}
+.section-head > div {
+  position: relative;
+  z-index: 1;
+  max-width: min(100%, 760px);
+}
+.section-head .eyebrow {
+  color: #91f1d7;
+}
+.section-head h1 {
+  color: #fff;
+  text-shadow: 0 2px 20px rgba(0,0,0,.16);
+}
+.section-head p {
+  max-width: 620px;
+  color: rgba(244,248,253,.86);
+}
+.section-head > .btn-primary {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.24);
+  box-shadow: 0 8px 22px rgba(0,0,0,.18);
+}
+:root[data-theme="dark"] .section-head {
+  border-color: rgba(255,255,255,.12);
+  box-shadow: 0 16px 38px rgba(0,0,0,.24);
+}
+@media (max-width: 680px) {
+  .section-head {
+    min-height: 176px;
+    padding: 22px 18px;
+    border-radius: 18px;
+    gap: 15px;
+  }
+  .section-head > .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .section-head::before,
+  .section-head:hover::before {
+    transform: none;
+    transition: none;
+  }
+}
