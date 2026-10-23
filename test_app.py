@@ -347,7 +347,12 @@ def test_theme_controls_and_search_have_no_command_k_hint(client):
     assert "api('/api/auth/demo'" in js
     assert 'data-action="demo-access"' in js
     assert "apiError.status = response.status" in js
-    assert "catch (demoError)" in js
+    # Authentication failures must remain in the requested form; demo access is explicit.
+    assert "catch (demoError)" not in js
+    assert "if ([401, 409, 422].includes(error.status))" not in js
+    assert "if ([409, 422].includes(error.status))" not in js
+    assert "Passwords do not match." in js
+    assert "Password must be at least 8 characters." in js
     assert "stockflow_theme" in js
     assert "function renderAuth(mode, error = '', values = {})" in js
     assert "escapeHtml(values.organization_name || '')" in js
